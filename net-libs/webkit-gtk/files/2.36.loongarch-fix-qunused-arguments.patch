@@ -1,0 +1,23 @@
+diff -ur a/Source/cmake/WebKitCompilerFlags.cmake b/Source/cmake/WebKitCompilerFlags.cmake
+--- a/Source/cmake/WebKitCompilerFlags.cmake	2022-04-27 14:03:15.952000000 +0800
++++ b/Source/cmake/WebKitCompilerFlags.cmake	2022-04-27 14:06:13.840000000 +0800
+@@ -99,7 +99,8 @@
+                                              -Wno-macro-redefined
+                                              -Wno-unknown-pragmas
+                                              -Wno-nonportable-include-path
+-                                             -Wno-unknown-argument)
++                                             -Wno-unknown-argument
++					     -Qunused-arguments)
+     else ()
+         WEBKIT_APPEND_GLOBAL_COMPILER_FLAGS(-fno-exceptions)
+         WEBKIT_APPEND_GLOBAL_CXX_FLAGS(-fno-rtti)
+@@ -123,8 +124,7 @@
+ 
+     # Warnings to be disabled
+     # FIXME: We should probably not be disabling -Wno-maybe-uninitialized?
+-    WEBKIT_PREPEND_GLOBAL_COMPILER_FLAGS(-Qunused-arguments
+-                                         -Wno-maybe-uninitialized
++    WEBKIT_PREPEND_GLOBAL_COMPILER_FLAGS(-Wno-maybe-uninitialized
+                                          -Wno-parentheses-equality
+                                          -Wno-misleading-indentation
+                                          -Wno-psabi)

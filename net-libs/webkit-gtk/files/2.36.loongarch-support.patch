@@ -1,0 +1,13 @@
+diff -uNr a/Source/WTF/wtf/dtoa/utils.h b/Source/WTF/wtf/dtoa/utils.h
+--- a/Source/WTF/wtf/dtoa/utils.h       2021-09-01 17:16:49.000000000 +0800
++++ b/Source/WTF/wtf/dtoa/utils.h       2022-01-03 12:20:02.491000000 +0800
+@@ -91,7 +91,7 @@
+     defined(__AARCH64EL__) || defined(__aarch64__) || defined(__AARCH64EB__) || \
+     defined(__riscv) || \
+     defined(__or1k__) || defined(__arc__) || \
+-    defined(__EMSCRIPTEN__)
++    defined(__EMSCRIPTEN__) || defined(__loongarch__)
+ #define DOUBLE_CONVERSION_CORRECT_DOUBLE_OPERATIONS 1
+ #elif defined(__mc68000__) || \
+     defined(__pnacl__) || defined(__native_client__)
+

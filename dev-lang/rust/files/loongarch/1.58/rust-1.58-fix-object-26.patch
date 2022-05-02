@@ -1,0 +1,86 @@
+diff --color -uNr a/vendor/object-0.26.0/src/common.rs c/vendor/object-0.26.0/src/common.rs
+--- a/vendor/object-0.26.0/src/common.rs	2021-11-30 04:27:33.000000000 +0800
++++ c/vendor/object-0.26.0/src/common.rs	2022-01-08 01:30:20.010000000 +0800
+@@ -13,6 +13,7 @@
+     #[allow(non_camel_case_types)]
+     X86_64_X32,
+     Hexagon,
++    LoongArch64,
+     Mips,
+     Mips64,
+     Msp430,
+@@ -40,6 +41,7 @@
+             Architecture::X86_64 => Some(AddressSize::U64),
+             Architecture::X86_64_X32 => Some(AddressSize::U32),
+             Architecture::Hexagon => Some(AddressSize::U32),
++            Architecture::LoongArch64 => Some(AddressSize::U64),
+             Architecture::Mips => Some(AddressSize::U32),
+             Architecture::Mips64 => Some(AddressSize::U64),
+             Architecture::Msp430 => Some(AddressSize::U16),
+diff --color -uNr a/vendor/object-0.26.0/src/elf.rs c/vendor/object-0.26.0/src/elf.rs
+--- a/vendor/object-0.26.0/src/elf.rs	2021-11-30 04:27:33.000000000 +0800
++++ c/vendor/object-0.26.0/src/elf.rs	2022-01-08 01:30:20.011000000 +0800
+@@ -562,6 +562,8 @@
+ pub const EM_BPF: u16 = 247;
+ /// C-SKY
+ pub const EM_CSKY: u16 = 252;
++/// LoongArch
++pub const EM_LOONGARCH: u16 = 258;
+ /// Digital Alpha
+ pub const EM_ALPHA: u16 = 0x9026;
+ 
+@@ -6217,6 +6219,23 @@
+ #[allow(missing_docs)]
+ pub const R_NDS32_TLS_DESC: u32 = 119;
+ 
++// LoongArch values `FileHeader*::e_flags`.
++#[allow(missing_docs)]
++pub const EF_LOONGARCH_ABI_LP64_SOFT_FLOAT: u32 = 0x0001;
++#[allow(missing_docs)]
++pub const EF_LOONGARCH_ABI_LP64_SINGLE_FLOAT: u32 = 0x0002;
++#[allow(missing_docs)]
++pub const EF_LOONGARCH_ABI_LP64_DOUBLE_FLOAT: u32 = 0x0003;
++#[allow(missing_docs)]
++pub const EF_LOONGARCH_ABI_ILP32_SOFT_FLOAT: u32 = 0x0005;
++#[allow(missing_docs)]
++pub const EF_LOONGARCH_ABI_ILP32_SINGLE_FLOAT: u32 = 0x0006;
++#[allow(missing_docs)]
++pub const EF_LOONGARCH_ABI_ILP32_DOUBLE_FLOAT: u32 = 0x0007;
++
++
++
++
+ unsafe_impl_endian_pod!(
+     FileHeader32,
+     FileHeader64,
+diff --color -uNr a/vendor/object-0.26.0/src/read/elf/file.rs c/vendor/object-0.26.0/src/read/elf/file.rs
+--- a/vendor/object-0.26.0/src/read/elf/file.rs	2021-11-30 04:27:33.000000000 +0800
++++ c/vendor/object-0.26.0/src/read/elf/file.rs	2022-01-08 01:30:20.012000000 +0800
+@@ -161,6 +161,7 @@
+             (elf::EM_X86_64, false) => Architecture::X86_64_X32,
+             (elf::EM_X86_64, true) => Architecture::X86_64,
+             (elf::EM_HEXAGON, _) => Architecture::Hexagon,
++            (elf::EM_LOONGARCH, _) => Architecture::LoongArch64,
+             (elf::EM_MIPS, false) => Architecture::Mips,
+             (elf::EM_MIPS, true) => Architecture::Mips64,
+             (elf::EM_MSP430, _) => Architecture::Msp430,
+diff --color -uNr a/vendor/object-0.26.0/src/write/elf.rs c/vendor/object-0.26.0/src/write/elf.rs
+--- a/vendor/object-0.26.0/src/write/elf.rs    2021-11-30 04:27:33.000000000 +0800
++++ c/vendor/object-0.26.0/src/write/elf.rs    2022-01-08 01:30:20.012000000 +0800
+@@ -79,6 +79,7 @@
+             Architecture::X86_64 => true,
+             Architecture::X86_64_X32 => true,
+             Architecture::Hexagon => true,
++            Architecture::LoongArch64 => true,
+             Architecture::Mips => false,
+             Architecture::Mips64 => true,
+             Architecture::Msp430 => true,
+@@ -362,6 +363,7 @@
+             Architecture::X86_64 => elf::EM_X86_64,
+             Architecture::X86_64_X32 => elf::EM_X86_64,
+             Architecture::Hexagon => elf::EM_HEXAGON,
++            Architecture::LoongArch64 => elf::EM_LOONGARCH,
+             Architecture::Mips => elf::EM_MIPS,
+             Architecture::Mips64 => elf::EM_MIPS,
+             Architecture::Msp430 => elf::EM_MSP430,
+
