@@ -31,7 +31,7 @@ SRC_URI="
 	https://static.rust-lang.org/dist/${SRC}
 	verify-sig? ( https://static.rust-lang.org/dist/${SRC}.asc )
 	!system-bootstrap? (
-		loong? ( http://192.168.1.200/x64/rust/rust-1.56.1-loongarch64-unknown-linux-gnu.tar.xz )
+		loong? ( https://github.com/phorcys/loongarch-desktop-overlay/releases/download/20220502/rust-1.59.0-loongarch64-unknown-linux-gnu.tar.xz )
 		!loong? ( $(rust_all_arch_uris rust-${RUST_STAGE0_VERSION}) )
 	)
 "
