@@ -74,7 +74,7 @@ index 3efedbe0f642..abcdec74627f 100644
    "invalid thread pointer reading mode '%0'">;
  def err_drv_missing_arg_mtp : Error<
 diff --git a/clang/include/clang/Basic/TargetBuiltins.h b/clang/include/clang/Basic/TargetBuiltins.h
-index d4ea8e98b2e3..88a07d0c116b 100644
+index d4ea8e98b2e3..5f3851af4940 100644
 --- a/clang/include/clang/Basic/TargetBuiltins.h
 +++ b/clang/include/clang/Basic/TargetBuiltins.h
 @@ -145,6 +145,16 @@ namespace clang {
@@ -94,12 +94,13 @@ index d4ea8e98b2e3..88a07d0c116b 100644
    /// Flags to identify the types for overloaded Neon builtins.
    ///
    /// These must be kept in sync with the flags in utils/TableGen/NeonEmitter.h.
-@@ -337,6 +347,8 @@ namespace clang {
+@@ -336,7 +346,8 @@ namespace clang {
+        PPC::LastTSBuiltin, NVPTX::LastTSBuiltin, AMDGPU::LastTSBuiltin,
         X86::LastTSBuiltin, VE::LastTSBuiltin, RISCV::LastTSBuiltin,
         Hexagon::LastTSBuiltin, Mips::LastTSBuiltin, XCore::LastTSBuiltin,
-        SystemZ::LastTSBuiltin, WebAssembly::LastTSBuiltin});
-+       Le64::LastTSBuiltin, SystemZ::LastTSBuiltin,
-+       WebAssembly::LastTSBuiltin, LoongArch::LastTSBuiltin});
+-       SystemZ::LastTSBuiltin, WebAssembly::LastTSBuiltin});
++       SystemZ::LastTSBuiltin, WebAssembly::LastTSBuiltin,
++       LoongArch::LastTSBuiltin});
  
  } // end namespace clang.
  
@@ -794,7 +795,7 @@ index 2979d92c8417..5ef50a16e917 100644
      return new ItaniumCXXABI(CGM, /*UseARMMethodPtrABI=*/true);
  
 diff --git a/clang/lib/CodeGen/TargetInfo.cpp b/clang/lib/CodeGen/TargetInfo.cpp
-index 9af3004ebcc5..e56e64d47481 100644
+index 9af3004ebcc5..69be87a0e18b 100644
 --- a/clang/lib/CodeGen/TargetInfo.cpp
 +++ b/clang/lib/CodeGen/TargetInfo.cpp
 @@ -7804,6 +7804,543 @@ void MSP430TargetCodeGenInfo::setTargetAttributes(
@@ -1305,11 +1306,11 @@ index 9af3004ebcc5..e56e64d47481 100644
 +    return Addr;
 +  }
 +
-+  std::pair<CharUnits, CharUnits> SizeAndAlign =
++  auto SizeAndAlign =
 +      getContext().getTypeInfoInChars(Ty);
 +
 +  // Arguments bigger than 2*Xlen bytes are passed indirectly.
-+  bool IsIndirect = SizeAndAlign.first > 2 * SlotSize;
++  bool IsIndirect = SizeAndAlign.Width > 2 * SlotSize;
 +
 +  return emitVoidPtrVAArg(CGF, VAListAddr, Ty, IsIndirect, SizeAndAlign,
 +                          SlotSize, /*AllowHigherAlign=*/true);
