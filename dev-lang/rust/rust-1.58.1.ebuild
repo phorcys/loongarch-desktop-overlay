@@ -232,7 +232,7 @@ pre_build_checks() {
 	M=$(( $(usex doc 256 0) + ${M} ))
 	CHECKREQS_DISK_BUILD=${M}M check-reqs_pkg_${EBUILD_PHASE}
 	if use loong; then
-        RUST_STAGE0_VERSION="1.56.1"
+        RUST_STAGE0_VERSION="1.57.0"
     fi
 }
 

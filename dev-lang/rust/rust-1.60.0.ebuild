@@ -225,9 +225,6 @@ pre_build_checks() {
 	M=$(( $(usex system-bootstrap 0 1024) + ${M} ))
 	M=$(( $(usex doc 256 0) + ${M} ))
 	CHECKREQS_DISK_BUILD=${M}M check-reqs_pkg_${EBUILD_PHASE}
-	if use loong; then
-		RUST_STAGE0_VERSION="1.56.1"
-	fi
 }
 
 llvm_check_deps() {
