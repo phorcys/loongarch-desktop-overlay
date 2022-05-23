@@ -1,0 +1,35 @@
+diff -ur a/vendor/cfg-expr/.cargo-checksum.json b/vendor/cfg-expr/.cargo-checksum.json
+--- a/vendor/cfg-expr/.cargo-checksum.json	2022-04-23 09:42:39.000000000 +0800
++++ b/vendor/cfg-expr/.cargo-checksum.json	2022-05-09 14:21:27.892000000 +0800
+@@ -1 +1 @@
+-{"files":{"CHANGELOG.md":"dc3d7bb745db70944c196c7009a7c35445e7fc7cee93484244fdd4a5ec442416","CODE_OF_CONDUCT.md":"ff8e424cc9ba55e10c0f83cda8bbd9034ffa6a299d589804292837aa7d50e098","CONTRIBUTING.md":"d6e246265d4ada5659a30e7c15969e65d740584b468327af3e8fec54b7206fb6","Cargo.lock":"98c1790eb53cf4e02c7624982c4d9c07044690adf571c5fd1a54028e2cc2e3d7","Cargo.toml":"623d3ca8928ea7b5525097047aa916f2e855ecd01ba5c51ac8c3e93978bc2ca8","LICENSE-APACHE":"8173d5c29b4f956d532781d2b86e4e30f83e6b7878dce18c919451d6ba707c90","LICENSE-MIT":"090a294a492ab2f41388252312a65cf2f0e423330b721a68c6665ac64766753b","README.md":"e934d909a97ddbde3bf7c1e9350895623c3c237fed3f33ccc10261e4517b3d49","clippy.toml":"cba24bf1199526b940d8fe1df76bc10a3c71b404969a702ff18e0b73d90680c0","deny.toml":"b7e686ed2f16b1c84a183dcc4fa9795c67be96a9f8e54db73b95ae58d4b76479","examples/eval.rs":"e50e4f4e6d9d0a774acde0b8dff8e2959f521091ba2d7429bab9dc81c1a5fd0a","release.toml":"42df748d28abd726fa155a29102da0c7ac006dfb601f6bdebfc169049b0ca535","src/error.rs":"2a219746dea035d0981d8b5195d781454b02a68e8f205fe8420a219591ddbd23","src/expr.rs":"a09377f370a0ead4ae7e6789236b48971c3cff8309a53e7fed771e445e66b027","src/expr/lexer.rs":"95fcdf902827fcccbc94af6052550b5070bc167c1d9c0b9bd5fb598f2b3380a3","src/expr/parser.rs":"3c0b5d2cc838e6a5f294f5d41c4dde17f1a385623bca3498be79e41c4bd15132","src/lib.rs":"68e82be4c5b8e454fbb3c524b6cc8b9534950bc4f99d9340766eb75405cd9abe","src/targets.rs":"846aee216176343668bd899f642bfc6652940e6e455f26f174d4ab43ebb860e2","src/targets/builtins.rs":"3c7fe77a67a34e6641b798f3a67dd6904396011a428f6af82cbec993eb924f0c","tests/eval.rs":"ffd15732e4d43629b5f4fae0f56f90050817c9a4e169e8f062eb49755102b1c8","tests/lexer.rs":"55109f29f4f3e257e969b53ee7823aeb50212abebbc55d1a67d7393ea42ce80b","tests/parser.rs":"a7771f4339f672ae3d85ce11364811270bb24dc2e6d5e4506cfc849617a8fe5e"},"package":"5e068cb2806bbc15b439846dc16c5f89f8599f2c3e4d73d4449d38f9b2f0b6c5"}
+\ 文件尾没有换行符
++{"files":{"CHANGELOG.md":"dc3d7bb745db70944c196c7009a7c35445e7fc7cee93484244fdd4a5ec442416","CODE_OF_CONDUCT.md":"ff8e424cc9ba55e10c0f83cda8bbd9034ffa6a299d589804292837aa7d50e098","CONTRIBUTING.md":"d6e246265d4ada5659a30e7c15969e65d740584b468327af3e8fec54b7206fb6","Cargo.lock":"98c1790eb53cf4e02c7624982c4d9c07044690adf571c5fd1a54028e2cc2e3d7","Cargo.toml":"623d3ca8928ea7b5525097047aa916f2e855ecd01ba5c51ac8c3e93978bc2ca8","LICENSE-APACHE":"8173d5c29b4f956d532781d2b86e4e30f83e6b7878dce18c919451d6ba707c90","LICENSE-MIT":"090a294a492ab2f41388252312a65cf2f0e423330b721a68c6665ac64766753b","README.md":"e934d909a97ddbde3bf7c1e9350895623c3c237fed3f33ccc10261e4517b3d49","clippy.toml":"cba24bf1199526b940d8fe1df76bc10a3c71b404969a702ff18e0b73d90680c0","deny.toml":"b7e686ed2f16b1c84a183dcc4fa9795c67be96a9f8e54db73b95ae58d4b76479","examples/eval.rs":"e50e4f4e6d9d0a774acde0b8dff8e2959f521091ba2d7429bab9dc81c1a5fd0a","release.toml":"42df748d28abd726fa155a29102da0c7ac006dfb601f6bdebfc169049b0ca535","src/error.rs":"2a219746dea035d0981d8b5195d781454b02a68e8f205fe8420a219591ddbd23","src/expr.rs":"a09377f370a0ead4ae7e6789236b48971c3cff8309a53e7fed771e445e66b027","src/expr/lexer.rs":"95fcdf902827fcccbc94af6052550b5070bc167c1d9c0b9bd5fb598f2b3380a3","src/expr/parser.rs":"3c0b5d2cc838e6a5f294f5d41c4dde17f1a385623bca3498be79e41c4bd15132","src/lib.rs":"68e82be4c5b8e454fbb3c524b6cc8b9534950bc4f99d9340766eb75405cd9abe","src/targets.rs":"846aee216176343668bd899f642bfc6652940e6e455f26f174d4ab43ebb860e2","src/targets/builtins.rs":"8a257503b6c1f91d196687d4dee92dbe524d129e78e7747af99c214098423295","tests/eval.rs":"ffd15732e4d43629b5f4fae0f56f90050817c9a4e169e8f062eb49755102b1c8","tests/lexer.rs":"55109f29f4f3e257e969b53ee7823aeb50212abebbc55d1a67d7393ea42ce80b","tests/parser.rs":"a7771f4339f672ae3d85ce11364811270bb24dc2e6d5e4506cfc849617a8fe5e"},"package":"5e068cb2806bbc15b439846dc16c5f89f8599f2c3e4d73d4449d38f9b2f0b6c5"}
+diff -ur a/vendor/cfg-expr/src/targets/builtins.rs b/vendor/cfg-expr/src/targets/builtins.rs
+--- a/vendor/cfg-expr/src/targets/builtins.rs	2022-04-23 09:42:39.000000000 +0800
++++ b/vendor/cfg-expr/src/targets/builtins.rs	2022-05-09 14:18:28.888000000 +0800
+@@ -794,6 +794,16 @@
+         endian: Endian::little,
+     },
+     TargetInfo {
++        triple: Triple::new_const("loongarch64-unknown-linux-gnu"),
++        os: Some(Os::linux),
++        arch: Arch::loongarch64,
++        env: Some(Env::gnu),
++        vendor: Some(Vendor::unknown),
++        families: Families::unix,
++        pointer_width: 64,
++        endian: Endian::little,
++    },
++    TargetInfo {
+         triple: Triple::new_const("m68k-unknown-linux-gnu"),
+         os: Some(Os::linux),
+         arch: Arch::m68k,
+@@ -1791,6 +1801,7 @@
+     pub const avr: Arch = Arch::new_const("avr");
+     pub const bpf: Arch = Arch::new_const("bpf");
+     pub const hexagon: Arch = Arch::new_const("hexagon");
++	pub const loongarch64: Arch = Arch::new_const("loongarch64");
+     pub const m68k: Arch = Arch::new_const("m68k");
+     pub const mips: Arch = Arch::new_const("mips");
+     pub const mips64: Arch = Arch::new_const("mips64");
