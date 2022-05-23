@@ -1,709 +1,3 @@
-diff --git a/llvm/CMakeLists.txt b/llvm/CMakeLists.txt
-index 08daf53a5b72..745c9a934166 100644
---- a/llvm/CMakeLists.txt
-+++ b/llvm/CMakeLists.txt
-@@ -310,6 +310,7 @@ set(LLVM_ALL_TARGETS
-   BPF
-   Hexagon
-   Lanai
-+  LoongArch
-   Mips
-   MSP430
-   NVPTX
-diff --git a/llvm/cmake/config-ix.cmake b/llvm/cmake/config-ix.cmake
-index dd0aaadb47c7..95e699d9e276 100644
---- a/llvm/cmake/config-ix.cmake
-+++ b/llvm/cmake/config-ix.cmake
-@@ -461,6 +461,8 @@ elseif (LLVM_NATIVE_ARCH MATCHES "riscv64")
-   set(LLVM_NATIVE_ARCH RISCV)
- elseif (LLVM_NATIVE_ARCH STREQUAL "m68k")
-   set(LLVM_NATIVE_ARCH M68k)
-+elseif (LLVM_NATIVE_ARCH MATCHES "loongarch")
-+  set(LLVM_NATIVE_ARCH LoongArch)
- else ()
-   message(FATAL_ERROR "Unknown architecture ${LLVM_NATIVE_ARCH}")
- endif ()
-diff --git a/llvm/cmake/config.guess b/llvm/cmake/config.guess
-index 60d3f588d6f7..255257d40b63 100644
---- a/llvm/cmake/config.guess
-+++ b/llvm/cmake/config.guess
-@@ -1021,6 +1021,9 @@ EOF
-     x86_64:Linux:*:*)
- 	echo x86_64-unknown-linux-gnu
- 	exit ;;
-+    loongarch64:Linux:*:*)
-+	echo loongarch64-unknown-linux-gnu
-+	exit ;;
-     xtensa*:Linux:*:*)
- 	echo ${UNAME_MACHINE}-unknown-linux-gnu
- 	exit ;;
-diff --git a/llvm/include/llvm/ADT/Triple.h b/llvm/include/llvm/ADT/Triple.h
-index 76f3514050f0..49b382672bc3 100644
---- a/llvm/include/llvm/ADT/Triple.h
-+++ b/llvm/include/llvm/ADT/Triple.h
-@@ -59,6 +59,8 @@ public:
-     csky,           // CSKY: csky
-     hexagon,        // Hexagon: hexagon
-     m68k,           // M68k: Motorola 680x0 family
-+    loongarch32,    // LoongArch (32-bit): loongarch32
-+    loongarch64,    // LoongArch (64-bit): loongarch64
-     mips,           // MIPS: mips, mipsallegrex, mipsr6
-     mipsel,         // MIPSEL: mipsel, mipsallegrexe, mipsr6el
-     mips64,         // MIPS64: mips64, mips64r6, mipsn32, mipsn32r6
-@@ -769,6 +771,20 @@ public:
-     return getArch() == Triple::ppc64 || getArch() == Triple::ppc64le;
-   }
- 
-+  /// Tests whether the target is LoongArch 32-bit
-+  bool isLoongArch32() const {
-+	  return getArch() == Triple::loongarch32;
-+  }
-+
-+  /// Tests whether the target is LoongArch 64-bit.
-+  bool isLoongArch64() const {
-+	  return getArch() == Triple::loongarch64;
-+  }
-+
-+  /// Tests whether the target is LoongArch (32- or 64-bit).
-+  bool isLoongArch() const {
-+	  return isLoongArch32() || isLoongArch64();
-+  }
-   /// Tests whether the target is RISC-V (32- and 64-bit).
-   bool isRISCV() const {
-     return getArch() == Triple::riscv32 || getArch() == Triple::riscv64;
-diff --git a/llvm/include/llvm/BinaryFormat/ELF.h b/llvm/include/llvm/BinaryFormat/ELF.h
-index 6148f968cdba..2fd701773769 100644
---- a/llvm/include/llvm/BinaryFormat/ELF.h
-+++ b/llvm/include/llvm/BinaryFormat/ELF.h
-@@ -320,6 +320,7 @@ enum {
-   EM_BPF = 247,           // Linux kernel bpf virtual machine
-   EM_VE = 251,            // NEC SX-Aurora VE
-   EM_CSKY = 252,          // C-SKY 32-bit processor
-+  EM_LOONGARCH = 258,     // LoongArch processor
- };
- 
- // Object file classes.
-@@ -660,6 +661,25 @@ enum {
- #include "ELFRelocs/RISCV.def"
- };
- 
-+// LoongArch Specific e_flags
-+enum : unsigned {
-+  // FIXME: Change these when all ABIs definition were finalized.
-+  // See current definitions:
-+  // https://loongson.github.io/LoongArch-Documentation/LoongArch-ELF-ABI-EN.html#_e_flags_identifies_abi_type_and_version
-+  EF_LARCH_BASE_ABI = 0x3,
-+  EF_LARCH_BASE_ABI_ILP32S = 0x5,
-+  EF_LARCH_BASE_ABI_ILP32F = 0x6,
-+  EF_LARCH_BASE_ABI_ILP32D = 0x7,
-+  EF_LARCH_BASE_ABI_LP64S = 0x1,
-+  EF_LARCH_BASE_ABI_LP64F = 0x2,
-+  EF_LARCH_BASE_ABI_LP64D = 0x3
-+};
-+
-+// ELF Relocation types for LoongArch
-+enum {
-+#include "ELFRelocs/LoongArch.def"
-+};
-+
- // ELF Relocation types for S390/zSeries
- enum {
- #include "ELFRelocs/SystemZ.def"
-diff --git a/llvm/include/llvm/BinaryFormat/ELFRelocs/LoongArch.def b/llvm/include/llvm/BinaryFormat/ELFRelocs/LoongArch.def
-new file mode 100644
-index 000000000000..131d26622e87
---- /dev/null
-+++ b/llvm/include/llvm/BinaryFormat/ELFRelocs/LoongArch.def
-@@ -0,0 +1,64 @@
-+
-+#ifndef ELF_RELOC
-+#error "ELF_RELOC must be defined"
-+#endif
-+
-+ELF_RELOC(R_LARCH_NONE, 0)
-+ELF_RELOC(R_LARCH_32, 1)
-+ELF_RELOC(R_LARCH_64, 2)
-+ELF_RELOC(R_LARCH_RELATIVE, 3)
-+ELF_RELOC(R_LARCH_COPY, 4)
-+ELF_RELOC(R_LARCH_JUMP_SLOT, 5)
-+ELF_RELOC(R_LARCH_TLS_DTPMOD32, 6)
-+ELF_RELOC(R_LARCH_TLS_DTPMOD64, 7)
-+ELF_RELOC(R_LARCH_TLS_DTPREL32, 8)
-+ELF_RELOC(R_LARCH_TLS_DTPREL64, 9)
-+ELF_RELOC(R_LARCH_TLS_TPREL32, 10)
-+ELF_RELOC(R_LARCH_TLS_TPREL64, 11)
-+ELF_RELOC(R_LARCH_IRELATIVE, 12)
-+
-+ELF_RELOC(R_LARCH_MARK_LA, 20)
-+ELF_RELOC(R_LARCH_MARK_PCREL, 21)
-+
-+ELF_RELOC(R_LARCH_SOP_PUSH_PCREL, 22)
-+
-+ELF_RELOC(R_LARCH_SOP_PUSH_ABSOLUTE, 23)
-+
-+ELF_RELOC(R_LARCH_SOP_PUSH_DUP, 24)
-+ELF_RELOC(R_LARCH_SOP_PUSH_GPREL, 25)
-+ELF_RELOC(R_LARCH_SOP_PUSH_TLS_TPREL, 26)
-+ELF_RELOC(R_LARCH_SOP_PUSH_TLS_GOT, 27)
-+ELF_RELOC(R_LARCH_SOP_PUSH_TLS_GD, 28)
-+ELF_RELOC(R_LARCH_SOP_PUSH_PLT_PCREL, 29)
-+
-+ELF_RELOC(R_LARCH_SOP_ASSERT, 30)
-+ELF_RELOC(R_LARCH_SOP_NOT, 31)
-+ELF_RELOC(R_LARCH_SOP_SUB, 32)
-+ELF_RELOC(R_LARCH_SOP_SL, 33)
-+ELF_RELOC(R_LARCH_SOP_SR, 34)
-+ELF_RELOC(R_LARCH_SOP_ADD, 35)
-+ELF_RELOC(R_LARCH_SOP_AND, 36)
-+ELF_RELOC(R_LARCH_SOP_IF_ELSE, 37)
-+ELF_RELOC(R_LARCH_SOP_POP_32_S_10_5, 38)
-+ELF_RELOC(R_LARCH_SOP_POP_32_U_10_12, 39)
-+ELF_RELOC(R_LARCH_SOP_POP_32_S_10_12, 40)
-+ELF_RELOC(R_LARCH_SOP_POP_32_S_10_16, 41)
-+ELF_RELOC(R_LARCH_SOP_POP_32_S_10_16_S2, 42)
-+ELF_RELOC(R_LARCH_SOP_POP_32_S_5_20, 43)
-+ELF_RELOC(R_LARCH_SOP_POP_32_S_0_5_10_16_S2, 44)
-+ELF_RELOC(R_LARCH_SOP_POP_32_S_0_10_10_16_S2, 45)
-+ELF_RELOC(R_LARCH_SOP_POP_32_U, 46)
-+
-+ELF_RELOC(R_LARCH_ADD8, 47)
-+ELF_RELOC(R_LARCH_ADD16, 48)
-+ELF_RELOC(R_LARCH_ADD24, 49)
-+ELF_RELOC(R_LARCH_ADD32, 50)
-+ELF_RELOC(R_LARCH_ADD64, 51)
-+ELF_RELOC(R_LARCH_SUB8, 52)
-+ELF_RELOC(R_LARCH_SUB16, 53)
-+ELF_RELOC(R_LARCH_SUB24, 54)
-+ELF_RELOC(R_LARCH_SUB32, 55)
-+ELF_RELOC(R_LARCH_SUB64, 56)
-+
-+ELF_RELOC(R_LARCH_GNU_VTINHERIT, 57)
-+ELF_RELOC(R_LARCH_GNU_VTENTRY, 58)
-diff --git a/llvm/include/llvm/IR/CMakeLists.txt b/llvm/include/llvm/IR/CMakeLists.txt
-index 0498fc269b63..b675a45d025e 100644
---- a/llvm/include/llvm/IR/CMakeLists.txt
-+++ b/llvm/include/llvm/IR/CMakeLists.txt
-@@ -9,6 +9,7 @@ tablegen(LLVM IntrinsicsAMDGPU.h -gen-intrinsic-enums -intrinsic-prefix=amdgcn)
- tablegen(LLVM IntrinsicsARM.h -gen-intrinsic-enums -intrinsic-prefix=arm)
- tablegen(LLVM IntrinsicsBPF.h -gen-intrinsic-enums -intrinsic-prefix=bpf)
- tablegen(LLVM IntrinsicsHexagon.h -gen-intrinsic-enums -intrinsic-prefix=hexagon)
-+tablegen(LLVM IntrinsicsLoongArch.h -gen-intrinsic-enums -intrinsic-prefix=loongarch)
- tablegen(LLVM IntrinsicsMips.h -gen-intrinsic-enums -intrinsic-prefix=mips)
- tablegen(LLVM IntrinsicsNVPTX.h -gen-intrinsic-enums -intrinsic-prefix=nvvm)
- tablegen(LLVM IntrinsicsPowerPC.h -gen-intrinsic-enums -intrinsic-prefix=ppc)
-diff --git a/llvm/include/llvm/IR/InlineAsm.h b/llvm/include/llvm/IR/InlineAsm.h
-index 1a0767aca142..2c65a125076f 100644
---- a/llvm/include/llvm/IR/InlineAsm.h
-+++ b/llvm/include/llvm/IR/InlineAsm.h
-@@ -261,6 +261,7 @@ public:
-     Constraint_Uy,
-     Constraint_X,
-     Constraint_Z,
-+    Constraint_ZB,
-     Constraint_ZC,
-     Constraint_Zy,
-     Constraints_Max = Constraint_Zy,
-diff --git a/llvm/include/llvm/IR/Intrinsics.td b/llvm/include/llvm/IR/Intrinsics.td
-index 28fcc13266b1..88e87bab7475 100644
---- a/llvm/include/llvm/IR/Intrinsics.td
-+++ b/llvm/include/llvm/IR/Intrinsics.td
-@@ -1781,3 +1781,4 @@ include "llvm/IR/IntrinsicsSystemZ.td"
- include "llvm/IR/IntrinsicsWebAssembly.td"
- include "llvm/IR/IntrinsicsRISCV.td"
- include "llvm/IR/IntrinsicsVE.td"
-+include "llvm/IR/IntrinsicsLoongArch.td"
-diff --git a/llvm/include/llvm/IR/IntrinsicsLoongArch.td b/llvm/include/llvm/IR/IntrinsicsLoongArch.td
-new file mode 100644
-index 000000000000..e43f34cc5440
---- /dev/null
-+++ b/llvm/include/llvm/IR/IntrinsicsLoongArch.td
-@@ -0,0 +1,129 @@
-+//===- IntrinsicsLoongArch.td - Defines LoongArch intrinsics ---------*- tablegen -*-===//
-+//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-+//
-+//===----------------------------------------------------------------------===//
-+//
-+// This file defines all of the LoongArch-specific intrinsics.
-+//
-+//===----------------------------------------------------------------------===//
-+
-+let TargetPrefix = "loongarch" in {  // All intrinsics start with "llvm.loongarch.".
-+
-+//===----------------------------------------------------------------------===//
-+// LoongArch BASE
-+
-+def int_loongarch_cpucfg : GCCBuiltin<"__builtin_loongarch_cpucfg">,
-+  Intrinsic<[llvm_i32_ty], [llvm_i32_ty], []>;
-+
-+def int_loongarch_csrrd : GCCBuiltin<"__builtin_loongarch_csrrd">,
-+  Intrinsic<[llvm_i32_ty], [llvm_i32_ty], []>;
-+
-+def int_loongarch_dcsrrd : GCCBuiltin<"__builtin_loongarch_dcsrrd">,
-+  Intrinsic<[llvm_i64_ty], [llvm_i64_ty], []>;
-+
-+def int_loongarch_csrwr : GCCBuiltin<"__builtin_loongarch_csrwr">,
-+  Intrinsic<[llvm_i32_ty], [llvm_i32_ty, llvm_i32_ty], []>;
-+
-+def int_loongarch_dcsrwr : GCCBuiltin<"__builtin_loongarch_dcsrwr">,
-+  Intrinsic<[llvm_i64_ty], [llvm_i64_ty, llvm_i64_ty], []>;
-+
-+def int_loongarch_csrxchg : GCCBuiltin<"__builtin_loongarch_csrxchg">,
-+  Intrinsic<[llvm_i32_ty], [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty], []>;
-+
-+def int_loongarch_dcsrxchg : GCCBuiltin<"__builtin_loongarch_dcsrxchg">,
-+  Intrinsic<[llvm_i64_ty], [llvm_i64_ty, llvm_i64_ty, llvm_i64_ty], []>;
-+
-+def int_loongarch_iocsrrd_b : GCCBuiltin<"__builtin_loongarch_iocsrrd_b">,
-+  Intrinsic<[llvm_i32_ty], [llvm_i32_ty], []>;
-+
-+def int_loongarch_iocsrrd_h : GCCBuiltin<"__builtin_loongarch_iocsrrd_h">,
-+  Intrinsic<[llvm_i32_ty], [llvm_i32_ty], []>;
-+
-+def int_loongarch_iocsrrd_w : GCCBuiltin<"__builtin_loongarch_iocsrrd_w">,
-+  Intrinsic<[llvm_i32_ty], [llvm_i32_ty], []>;
-+
-+def int_loongarch_iocsrrd_d : GCCBuiltin<"__builtin_loongarch_iocsrrd_d">,
-+  Intrinsic<[llvm_i64_ty], [llvm_i32_ty], []>;
-+
-+def int_loongarch_iocsrwr_b : GCCBuiltin<"__builtin_loongarch_iocsrwr_b">,
-+  Intrinsic<[], [llvm_i32_ty, llvm_i32_ty], []>;
-+
-+def int_loongarch_iocsrwr_h : GCCBuiltin<"__builtin_loongarch_iocsrwr_h">,
-+  Intrinsic<[], [llvm_i32_ty, llvm_i32_ty], []>;
-+
-+def int_loongarch_iocsrwr_w : GCCBuiltin<"__builtin_loongarch_iocsrwr_w">,
-+  Intrinsic<[], [llvm_i32_ty, llvm_i32_ty], []>;
-+
-+def int_loongarch_iocsrwr_d : GCCBuiltin<"__builtin_loongarch_iocsrwr_d">,
-+  Intrinsic<[], [llvm_i64_ty, llvm_i32_ty], []>;
-+
-+def int_loongarch_cacop : GCCBuiltin<"__builtin_loongarch_cacop">,
-+  Intrinsic<[], [llvm_i32_ty, llvm_i32_ty, llvm_i32_ty], []>;
-+
-+def int_loongarch_dcacop : GCCBuiltin<"__builtin_loongarch_dcacop">,
-+  Intrinsic<[], [llvm_i32_ty, llvm_i64_ty, llvm_i64_ty], []>;
-+
-+def int_loongarch_crc_w_b_w : GCCBuiltin<"__builtin_loongarch_crc_w_b_w">,
-+  Intrinsic<[llvm_i32_ty], [llvm_i32_ty, llvm_i32_ty], []>;
-+
-+def int_loongarch_crc_w_h_w : GCCBuiltin<"__builtin_loongarch_crc_w_h_w">,
-+  Intrinsic<[llvm_i32_ty], [llvm_i32_ty, llvm_i32_ty], []>;
-+
-+def int_loongarch_crc_w_w_w : GCCBuiltin<"__builtin_loongarch_crc_w_w_w">,
-+  Intrinsic<[llvm_i32_ty], [llvm_i32_ty, llvm_i32_ty], []>;
-+
-+def int_loongarch_crc_w_d_w : GCCBuiltin<"__builtin_loongarch_crc_w_d_w">,
-+  Intrinsic<[llvm_i32_ty], [llvm_i64_ty, llvm_i32_ty], []>;
-+
-+def int_loongarch_crcc_w_b_w : GCCBuiltin<"__builtin_loongarch_crcc_w_b_w">,
-+  Intrinsic<[llvm_i32_ty], [llvm_i32_ty, llvm_i32_ty], []>;
-+
-+def int_loongarch_crcc_w_h_w : GCCBuiltin<"__builtin_loongarch_crcc_w_h_w">,
-+  Intrinsic<[llvm_i32_ty], [llvm_i32_ty, llvm_i32_ty], []>;
-+
-+def int_loongarch_crcc_w_w_w : GCCBuiltin<"__builtin_loongarch_crcc_w_w_w">,
-+  Intrinsic<[llvm_i32_ty], [llvm_i32_ty, llvm_i32_ty], []>;
-+
-+def int_loongarch_crcc_w_d_w : GCCBuiltin<"__builtin_loongarch_crcc_w_d_w">,
-+  Intrinsic<[llvm_i32_ty], [llvm_i64_ty, llvm_i32_ty], []>;
-+
-+def int_loongarch_tlbclr : GCCBuiltin<"__builtin_loongarch_tlbclr">,
-+  Intrinsic<[], [], []>;
-+
-+def int_loongarch_tlbflush : GCCBuiltin<"__builtin_loongarch_tlbflush">,
-+  Intrinsic<[], [], []>;
-+
-+def int_loongarch_tlbfill : GCCBuiltin<"__builtin_loongarch_tlbfill">,
-+  Intrinsic<[], [], []>;
-+
-+def int_loongarch_tlbrd : GCCBuiltin<"__builtin_loongarch_tlbrd">,
-+  Intrinsic<[], [], []>;
-+
-+def int_loongarch_tlbwr : GCCBuiltin<"__builtin_loongarch_tlbwr">,
-+  Intrinsic<[], [], []>;
-+
-+def int_loongarch_tlbsrch : GCCBuiltin<"__builtin_loongarch_tlbsrch">,
-+  Intrinsic<[], [], []>;
-+
-+def int_loongarch_syscall : GCCBuiltin<"__builtin_loongarch_syscall">,
-+  Intrinsic<[], [llvm_i64_ty], []>;
-+
-+def int_loongarch_break : GCCBuiltin<"__builtin_loongarch_break">,
-+  Intrinsic<[], [llvm_i64_ty], []>;
-+
-+def int_loongarch_asrtle_d : GCCBuiltin<"__builtin_loongarch_asrtle_d">,
-+  Intrinsic<[], [llvm_i64_ty, llvm_i64_ty], []>;
-+
-+def int_loongarch_asrtgt_d : GCCBuiltin<"__builtin_loongarch_asrtgt_d">,
-+  Intrinsic<[], [llvm_i64_ty, llvm_i64_ty], []>;
-+
-+def int_loongarch_dbar : GCCBuiltin<"__builtin_loongarch_dbar">,
-+  Intrinsic<[], [llvm_i64_ty], []>;
-+
-+def int_loongarch_ibar : GCCBuiltin<"__builtin_loongarch_ibar">,
-+  Intrinsic<[], [llvm_i64_ty], []>;
-+
-+}
-diff --git a/llvm/include/llvm/Object/ELFObjectFile.h b/llvm/include/llvm/Object/ELFObjectFile.h
-index c87a09f86fae..8d149929b9a3 100644
---- a/llvm/include/llvm/Object/ELFObjectFile.h
-+++ b/llvm/include/llvm/Object/ELFObjectFile.h
-@@ -1189,6 +1189,8 @@ StringRef ELFObjectFile<ELFT>::getFileFormatName() const {
-       return "elf32-littleriscv";
-     case ELF::EM_CSKY:
-       return "elf32-csky";
-+    case ELF::EM_LOONGARCH:
-+      return "elf32-loongarch";
-     case ELF::EM_SPARC:
-     case ELF::EM_SPARC32PLUS:
-       return "elf32-sparc";
-@@ -1213,6 +1215,8 @@ StringRef ELFObjectFile<ELFT>::getFileFormatName() const {
-       return "elf64-s390";
-     case ELF::EM_SPARCV9:
-       return "elf64-sparc";
-+    case ELF::EM_LOONGARCH:
-+      return "elf64-loongarch";
-     case ELF::EM_MIPS:
-       return "elf64-mips";
-     case ELF::EM_AMDGPU:
-@@ -1274,6 +1278,15 @@ template <class ELFT> Triple::ArchType ELFObjectFile<ELFT>::getArch() const {
-     default:
-       report_fatal_error("Invalid ELFCLASS!");
-     }
-+  case ELF::EM_LOONGARCH:
-+    switch (EF.getHeader().e_ident[ELF::EI_CLASS]) {
-+    case ELF::ELFCLASS32:
-+      return Triple::loongarch32;
-+    case ELF::ELFCLASS64:
-+      return Triple::loongarch64;
-+    default:
-+      report_fatal_error("Invalid ELFCLASS!");
-+    }
-   case ELF::EM_S390:
-     return Triple::systemz;
- 
-diff --git a/llvm/include/llvm/module.modulemap b/llvm/include/llvm/module.modulemap
-index 848fb266374e..a117b6677edf 100644
---- a/llvm/include/llvm/module.modulemap
-+++ b/llvm/include/llvm/module.modulemap
-@@ -71,6 +71,7 @@ module LLVM_BinaryFormat {
-     textual header "BinaryFormat/ELFRelocs/i386.def"
-     textual header "BinaryFormat/ELFRelocs/Lanai.def"
-     textual header "BinaryFormat/ELFRelocs/M68k.def"
-+    textual header "BinaryFormat/ELFRelocs/LoongArch.def"
-     textual header "BinaryFormat/ELFRelocs/Mips.def"
-     textual header "BinaryFormat/ELFRelocs/MSP430.def"
-     textual header "BinaryFormat/ELFRelocs/PowerPC64.def"
-diff --git a/llvm/lib/CodeGen/RegisterScavenging.cpp b/llvm/lib/CodeGen/RegisterScavenging.cpp
-index e35cf7aa6958..e89b0bd8efe4 100644
---- a/llvm/lib/CodeGen/RegisterScavenging.cpp
-+++ b/llvm/lib/CodeGen/RegisterScavenging.cpp
-@@ -424,6 +424,10 @@ findSurvivorBackwards(const MachineRegisterInfo &MRI,
-         InstrCountDown = InstrLimit;
-         Pos = I;
-       }
-+      if (I->getFlag(MachineInstr::FrameSetup)) {
-+        Pos = To;
-+        break;
-+      }
-       if (I == MBB.begin())
-         break;
-     }
-diff --git a/llvm/lib/CodeGen/TargetLoweringObjectFileImpl.cpp b/llvm/lib/CodeGen/TargetLoweringObjectFileImpl.cpp
-index de096f95afcb..a783fc7b9c2e 100644
---- a/llvm/lib/CodeGen/TargetLoweringObjectFileImpl.cpp
-+++ b/llvm/lib/CodeGen/TargetLoweringObjectFileImpl.cpp
-@@ -208,6 +208,16 @@ void TargetLoweringObjectFileELF::Initialize(MCContext &Ctx,
-     PersonalityEncoding = dwarf::DW_EH_PE_absptr;
-     TTypeEncoding = dwarf::DW_EH_PE_absptr;
-     break;
-+  case Triple::loongarch32:
-+  case Triple::loongarch64:
-+    PersonalityEncoding = dwarf::DW_EH_PE_indirect;
-+
-+    // Note: gas does not support pc-relative LSDA references.
-+    LSDAEncoding = dwarf::DW_EH_PE_absptr;
-+
-+    TTypeEncoding = dwarf::DW_EH_PE_indirect | dwarf::DW_EH_PE_pcrel |
-+                    dwarf::DW_EH_PE_sdata4;
-+    break;
-   case Triple::mips:
-   case Triple::mipsel:
-   case Triple::mips64:
-diff --git a/llvm/lib/CodeGen/XRayInstrumentation.cpp b/llvm/lib/CodeGen/XRayInstrumentation.cpp
-index 11d1b309aa64..1655cac5d1c7 100644
---- a/llvm/lib/CodeGen/XRayInstrumentation.cpp
-+++ b/llvm/lib/CodeGen/XRayInstrumentation.cpp
-@@ -226,6 +226,8 @@ bool XRayInstrumentation::runOnMachineFunction(MachineFunction &MF) {
-     case Triple::ArchType::arm:
-     case Triple::ArchType::thumb:
-     case Triple::ArchType::aarch64:
-+    case Triple::ArchType::loongarch32:
-+    case Triple::ArchType::loongarch64:
-     case Triple::ArchType::mips:
-     case Triple::ArchType::mipsel:
-     case Triple::ArchType::mips64:
-diff --git a/llvm/lib/IR/Function.cpp b/llvm/lib/IR/Function.cpp
-index 4034b1505bd0..c13bec2bf91c 100644
---- a/llvm/lib/IR/Function.cpp
-+++ b/llvm/lib/IR/Function.cpp
-@@ -38,6 +38,7 @@
- #include "llvm/IR/IntrinsicsARM.h"
- #include "llvm/IR/IntrinsicsBPF.h"
- #include "llvm/IR/IntrinsicsHexagon.h"
-+#include "llvm/IR/IntrinsicsLoongArch.h"
- #include "llvm/IR/IntrinsicsMips.h"
- #include "llvm/IR/IntrinsicsNVPTX.h"
- #include "llvm/IR/IntrinsicsPowerPC.h"
-diff --git a/llvm/lib/MC/MCObjectFileInfo.cpp b/llvm/lib/MC/MCObjectFileInfo.cpp
-index 7ea1106068b7..5040eb5c0989 100644
---- a/llvm/lib/MC/MCObjectFileInfo.cpp
-+++ b/llvm/lib/MC/MCObjectFileInfo.cpp
-@@ -304,6 +304,12 @@ void MCObjectFileInfo::initMachOMCObjectFileInfo(const Triple &T) {
- 
- void MCObjectFileInfo::initELFMCObjectFileInfo(const Triple &T, bool Large) {
-   switch (T.getArch()) {
-+  case Triple::loongarch32:
-+  case Triple::loongarch64:
-+    FDECFIEncoding = Ctx->getAsmInfo()->getCodePointerSize() == 4
-+                         ? dwarf::DW_EH_PE_sdata4
-+                         : dwarf::DW_EH_PE_sdata8;
-+    break;
-   case Triple::mips:
-   case Triple::mipsel:
-   case Triple::mips64:
-diff --git a/llvm/lib/Object/ELF.cpp b/llvm/lib/Object/ELF.cpp
-index ca2ed4449120..8e6d1f3d2449 100644
---- a/llvm/lib/Object/ELF.cpp
-+++ b/llvm/lib/Object/ELF.cpp
-@@ -101,6 +101,13 @@ StringRef llvm::object::getELFRelocationTypeName(uint32_t Machine,
-       break;
-     }
-     break;
-+  case ELF::EM_LOONGARCH:
-+    switch (Type) {
-+#include "llvm/BinaryFormat/ELFRelocs/LoongArch.def"
-+    default:
-+      break;
-+    }
-+    break;
-   case ELF::EM_PPC64:
-     switch (Type) {
- #include "llvm/BinaryFormat/ELFRelocs/PowerPC64.def"
-diff --git a/llvm/lib/Support/Host.cpp b/llvm/lib/Support/Host.cpp
-index f873ff06f1f7..0286f9bf8965 100644
---- a/llvm/lib/Support/Host.cpp
-+++ b/llvm/lib/Support/Host.cpp
-@@ -1279,6 +1279,45 @@ StringRef sys::getHostCPUName() {
-   bool HaveVectorSupport = CVT[244] & 0x80;
-   return getCPUNameFromS390Model(Id, HaveVectorSupport);
- }
-+#elif defined(__linux__) && defined(__loongarch__)
-+// loongarch prid register
-+// +----------------+----------------+----------------+----------------+
-+// | Company Options| Company ID     | Processor ID   | Revision       |
-+// +----------------+----------------+----------------+----------------+
-+//  31            24 23            16 15             8 7              0
-+
-+#define PRID_OPT_MASK                  0xff000000
-+#define PRID_COMP_MASK                 0xff0000
-+#define PRID_COMP_LOONGSON             0x140000
-+#define PRID_IMP_MASK                  0xff00
-+
-+#define PRID_IMP_LOONGSON_32  0x4200  /* Loongson 32bit */
-+#define PRID_IMP_LOONGSON_64R 0x6100  /* Reduced Loongson 64bit */
-+#define PRID_IMP_LOONGSON_64C 0x6300  /* Classic Loongson 64bit */
-+#define PRID_IMP_LOONGSON_64G 0xc000  /* Generic Loongson 64bit */
-+
-+StringRef sys::getHostCPUName() {
-+  // use prid to detect cpu name
-+  unsigned CPUCFG_NUM = 0; // prid
-+  unsigned prid;
-+
-+  __asm__("cpucfg %[prid], %[CPUCFG_NUM]\n\t"
-+      :[prid]"=r"(prid)
-+      :[CPUCFG_NUM]"r"(CPUCFG_NUM));
-+
-+  if ((prid & PRID_COMP_MASK) == PRID_COMP_LOONGSON) {// for Loongson
-+    switch (prid & PRID_IMP_MASK) {
-+      case PRID_IMP_LOONGSON_32: // not support
-+        return "loongarch32";
-+      case PRID_IMP_LOONGSON_64R:
-+      case PRID_IMP_LOONGSON_64C:
-+      case PRID_IMP_LOONGSON_64G:
-+        return "la464";
-+    }
-+  }
-+
-+  return "generic";
-+}
- #elif defined(__APPLE__) && defined(__aarch64__)
- StringRef sys::getHostCPUName() {
-   return "cyclone";
-@@ -1721,6 +1760,36 @@ bool sys::getHostCPUFeatures(StringMap<bool> &Features) {
- 
-   return true;
- }
-+#elif defined(__linux__) && defined(__loongarch__)
-+bool sys::getHostCPUFeatures(StringMap<bool> &Features) {
-+  std::unique_ptr<llvm::MemoryBuffer> P = getProcCpuinfoContent();
-+  if (!P)
-+    return false;
-+
-+  SmallVector<StringRef, 32> Lines;
-+  P->getBuffer().split(Lines, "\n");
-+
-+  SmallVector<StringRef, 32> CPUFeatures;
-+
-+  // Look for the CPU features.
-+  for (unsigned I = 0, E = Lines.size(); I != E; ++I)
-+    if (Lines[I].startswith("features")) {
-+      Lines[I].split(CPUFeatures, ' ');
-+      break;
-+    }
-+
-+  for (unsigned I = 0, E = CPUFeatures.size(); I != E; ++I) {
-+    StringRef LLVMFeatureStr = StringSwitch<StringRef>(CPUFeatures[I])
-+                                   .Case("lsx", "lsx")
-+                                   .Case("lasx", "lasx")
-+                                   .Default("");
-+
-+    if (LLVMFeatureStr != "")
-+      Features[LLVMFeatureStr] = true;
-+  }
-+
-+  return true;
-+}
- #else
- bool sys::getHostCPUFeatures(StringMap<bool> &Features) { return false; }
- #endif
-diff --git a/llvm/lib/Support/Triple.cpp b/llvm/lib/Support/Triple.cpp
-index 88311546354b..fe66e5ae21fd 100644
---- a/llvm/lib/Support/Triple.cpp
-+++ b/llvm/lib/Support/Triple.cpp
-@@ -45,6 +45,8 @@ StringRef Triple::getArchTypeName(ArchType Kind) {
-   case le32:           return "le32";
-   case le64:           return "le64";
-   case m68k:           return "m68k";
-+  case loongarch32:    return "loongarch32";
-+  case loongarch64:    return "loongarch64";
-   case mips64:         return "mips64";
-   case mips64el:       return "mips64el";
-   case mips:           return "mips";
-@@ -158,6 +160,9 @@ StringRef Triple::getArchTypePrefix(ArchType Kind) {
- 
-   case ve:          return "ve";
-   case csky:        return "csky";
-+
-+  case loongarch32:
-+  case loongarch64: return "loongarch";
-   }
- }
- 
-@@ -332,6 +337,8 @@ Triple::ArchType Triple::getArchTypeForLLVMName(StringRef Name) {
-     .Case("renderscript64", renderscript64)
-     .Case("ve", ve)
-     .Case("csky", csky)
-+    .Case("loongarch32", loongarch32)
-+    .Case("loongarch64", loongarch64)
-     .Default(UnknownArch);
- }
- 
-@@ -465,6 +472,8 @@ static Triple::ArchType parseArch(StringRef ArchName) {
-     .Case("wasm32", Triple::wasm32)
-     .Case("wasm64", Triple::wasm64)
-     .Case("csky", Triple::csky)
-+    .Case("loongarch32", Triple::loongarch32)
-+    .Case("loongarch64", Triple::loongarch64)
-     .Default(Triple::UnknownArch);
- 
-   // Some architectures require special parsing logic just to compute the
-@@ -712,6 +721,8 @@ static Triple::ObjectFormatType getDefaultFormat(const Triple &T) {
-   case Triple::le32:
-   case Triple::le64:
-   case Triple::m68k:
-+  case Triple::loongarch32:
-+  case Triple::loongarch64:
-   case Triple::mips64:
-   case Triple::mips64el:
-   case Triple::mips:
-@@ -788,6 +799,7 @@ Triple::Triple(const Twine &Str)
-               .StartsWith("mipsisa64", Triple::GNUABI64)
-               .StartsWith("mipsisa32", Triple::GNU)
-               .Cases("mips", "mipsel", "mipsr6", "mipsr6el", Triple::GNU)
-+              .Cases("loongarch32", "loongarch64", Triple::GNU)
-               .Default(UnknownEnvironment);
-     }
-   }
-@@ -1286,6 +1298,7 @@ static unsigned getArchPointerBitWidth(llvm::Triple::ArchType Arch) {
-   case llvm::Triple::lanai:
-   case llvm::Triple::le32:
-   case llvm::Triple::m68k:
-+  case llvm::Triple::loongarch32:
-   case llvm::Triple::mips:
-   case llvm::Triple::mipsel:
-   case llvm::Triple::nvptx:
-@@ -1315,6 +1328,7 @@ static unsigned getArchPointerBitWidth(llvm::Triple::ArchType Arch) {
-   case llvm::Triple::bpfel:
-   case llvm::Triple::hsail64:
-   case llvm::Triple::le64:
-+  case llvm::Triple::loongarch64:
-   case llvm::Triple::mips64:
-   case llvm::Triple::mips64el:
-   case llvm::Triple::nvptx64:
-@@ -1371,6 +1385,7 @@ Triple Triple::get32BitArchVariant() const {
-   case Triple::lanai:
-   case Triple::le32:
-   case Triple::m68k:
-+  case Triple::loongarch32:
-   case Triple::mips:
-   case Triple::mipsel:
-   case Triple::nvptx:
-@@ -1398,6 +1413,7 @@ Triple Triple::get32BitArchVariant() const {
-   case Triple::amdil64:        T.setArch(Triple::amdil);   break;
-   case Triple::hsail64:        T.setArch(Triple::hsail);   break;
-   case Triple::le64:           T.setArch(Triple::le32);    break;
-+  case Triple::loongarch64:    T.setArch(Triple::loongarch32);   break;
-   case Triple::mips64:         T.setArch(Triple::mips);    break;
-   case Triple::mips64el:       T.setArch(Triple::mipsel);  break;
-   case Triple::nvptx64:        T.setArch(Triple::nvptx);   break;
-@@ -1442,6 +1458,7 @@ Triple Triple::get64BitArchVariant() const {
-   case Triple::bpfel:
-   case Triple::hsail64:
-   case Triple::le64:
-+  case Triple::loongarch64:
-   case Triple::mips64:
-   case Triple::mips64el:
-   case Triple::nvptx64:
-@@ -1464,6 +1481,7 @@ Triple Triple::get64BitArchVariant() const {
-   case Triple::armeb:           T.setArch(Triple::aarch64_be); break;
-   case Triple::hsail:           T.setArch(Triple::hsail64);    break;
-   case Triple::le32:            T.setArch(Triple::le64);       break;
-+  case Triple::loongarch32:     T.setArch(Triple::loongarch64);        break;
-   case Triple::mips:            T.setArch(Triple::mips64);     break;
-   case Triple::mipsel:          T.setArch(Triple::mips64el);   break;
-   case Triple::nvptx:           T.setArch(Triple::nvptx64);    break;
-@@ -1498,6 +1516,8 @@ Triple Triple::getBigEndianArchVariant() const {
-   case Triple::kalimba:
-   case Triple::le32:
-   case Triple::le64:
-+  case Triple::loongarch32:
-+  case Triple::loongarch64:
-   case Triple::msp430:
-   case Triple::nvptx64:
-   case Triple::nvptx:
-@@ -1588,6 +1608,8 @@ bool Triple::isLittleEndian() const {
-   case Triple::kalimba:
-   case Triple::le32:
-   case Triple::le64:
-+  case Triple::loongarch32:
-+  case Triple::loongarch64:
-   case Triple::mips64el:
-   case Triple::mipsel:
-   case Triple::msp430:
 diff --git a/llvm/lib/Target/LLVMBuild.txt b/llvm/lib/Target/LLVMBuild.txt
 new file mode 100644
 index 000000000000..bb217aa41e6e
@@ -837,7 +131,7 @@ index 000000000000..8fbecde89dd8
 +add_to_library_groups = LoongArch
 diff --git a/llvm/lib/Target/LoongArch/AsmParser/LoongArchAsmParser.cpp b/llvm/lib/Target/LoongArch/AsmParser/LoongArchAsmParser.cpp
 new file mode 100644
-index 000000000000..a012f8af1c82
+index 000000000000..0459db2d5d28
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/AsmParser/LoongArchAsmParser.cpp
 @@ -0,0 +1,2132 @@
@@ -888,7 +182,7 @@ index 000000000000..a012f8af1c82
 +#include "llvm/Support/MathExtras.h"
 +#include "llvm/Support/SMLoc.h"
 +#include "llvm/Support/SourceMgr.h"
-+#include "llvm/Support/TargetRegistry.h"
++#include "llvm/MC/TargetRegistry.h"
 +#include "llvm/Support/raw_ostream.h"
 +#include <algorithm>
 +#include <cassert>
@@ -2979,7 +2273,7 @@ index 000000000000..df851fe30932
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/CMakeLists.txt
 @@ -0,0 +1,56 @@
-+add_llvm_component_group(LoongArch HAS_JIT)
++add_llvm_component_group(LoongArch)
 +
 +set(LLVM_TARGET_DEFINITIONS LoongArch.td)
 +
@@ -3083,7 +2377,7 @@ index 000000000000..ebdd9686b42d
 +add_to_library_groups = LoongArch
 diff --git a/llvm/lib/Target/LoongArch/Disassembler/LoongArchDisassembler.cpp b/llvm/lib/Target/LoongArch/Disassembler/LoongArchDisassembler.cpp
 new file mode 100644
-index 000000000000..935dce7a3ac5
+index 000000000000..92282da63394
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/Disassembler/LoongArchDisassembler.cpp
 @@ -0,0 +1,403 @@
@@ -3112,7 +2406,7 @@ index 000000000000..935dce7a3ac5
 +#include "llvm/Support/Debug.h"
 +#include "llvm/Support/ErrorHandling.h"
 +#include "llvm/Support/MathExtras.h"
-+#include "llvm/Support/TargetRegistry.h"
++#include "llvm/MC/TargetRegistry.h"
 +#include "llvm/Support/raw_ostream.h"
 +#include <cassert>
 +#include <cstdint>
@@ -4626,7 +3920,7 @@ index 000000000000..36ac7266cf69
 +#endif // LLVM_LIB_TARGET_LOONGARCH_LOONGARCHANALYZEIMMEDIATE_H
 diff --git a/llvm/lib/Target/LoongArch/LoongArchAsmPrinter.cpp b/llvm/lib/Target/LoongArch/LoongArchAsmPrinter.cpp
 new file mode 100644
-index 000000000000..5f685e0bf52a
+index 000000000000..4c460210767c
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/LoongArchAsmPrinter.cpp
 @@ -0,0 +1,591 @@
@@ -4684,7 +3978,7 @@ index 000000000000..5f685e0bf52a
 +#include "llvm/MC/MCSymbolELF.h"
 +#include "llvm/Support/Casting.h"
 +#include "llvm/Support/ErrorHandling.h"
-+#include "llvm/Support/TargetRegistry.h"
++#include "llvm/MC/TargetRegistry.h"
 +#include "llvm/Support/raw_ostream.h"
 +#include "llvm/Target/TargetMachine.h"
 +#include <cassert>
@@ -7667,7 +6961,7 @@ index 000000000000..174df486e95b
 +}
 diff --git a/llvm/lib/Target/LoongArch/LoongArchFrameLowering.h b/llvm/lib/Target/LoongArch/LoongArchFrameLowering.h
 new file mode 100644
-index 000000000000..1212340893df
+index 000000000000..99c1c79a2a7e
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/LoongArchFrameLowering.h
 @@ -0,0 +1,67 @@
@@ -7720,7 +7014,7 @@ index 000000000000..1212340893df
 +
 +  bool hasBP(const MachineFunction &MF) const;
 +
-+  bool isFPCloseToIncomingSP() const override { return false; }
++  bool isFPCloseToIncomingSP() const  { return false; }
 +
 +  bool enableShrinkWrapping(const MachineFunction &MF) const override {
 +    return true;
@@ -14414,7 +13708,7 @@ index 000000000000..b56a8d594a8f
 +}
 diff --git a/llvm/lib/Target/LoongArch/LoongArchInstrInfo.h b/llvm/lib/Target/LoongArch/LoongArchInstrInfo.h
 new file mode 100644
-index 000000000000..cae20d5f60e7
+index 000000000000..067efb6a9f60
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/LoongArchInstrInfo.h
 @@ -0,0 +1,244 @@
@@ -14512,7 +13806,7 @@ index 000000000000..cae20d5f60e7
 +  unsigned insertIndirectBranch(MachineBasicBlock &MBB,
 +                                MachineBasicBlock &NewDestBB,
 +                                const DebugLoc &DL, int64_t BrOffset,
-+                                RegScavenger *RS = nullptr) const override;
++                                RegScavenger *RS = nullptr) const;
 +  bool
 +  reverseBranchCondition(SmallVectorImpl<MachineOperand> &Cond) const override;
 +
@@ -18541,7 +17835,7 @@ index 000000000000..ba72cfa4019c
 +}
 diff --git a/llvm/lib/Target/LoongArch/LoongArchSubtarget.cpp b/llvm/lib/Target/LoongArch/LoongArchSubtarget.cpp
 new file mode 100644
-index 000000000000..7cb471d94672
+index 000000000000..8ea21257cb77
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/LoongArchSubtarget.cpp
 @@ -0,0 +1,105 @@
@@ -18566,7 +17860,7 @@ index 000000000000..7cb471d94672
 +#include "llvm/IR/Function.h"
 +#include "llvm/Support/CommandLine.h"
 +#include "llvm/Support/Debug.h"
-+#include "llvm/Support/TargetRegistry.h"
++#include "llvm/MC/TargetRegistry.h"
 +#include "llvm/Support/raw_ostream.h"
 +
 +using namespace llvm;
@@ -18789,7 +18083,7 @@ index 000000000000..3eeee27b0d1c
 +#endif
 diff --git a/llvm/lib/Target/LoongArch/LoongArchTargetMachine.cpp b/llvm/lib/Target/LoongArch/LoongArchTargetMachine.cpp
 new file mode 100644
-index 000000000000..e69b179e1812
+index 000000000000..09d0e73fd214
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/LoongArchTargetMachine.cpp
 @@ -0,0 +1,185 @@
@@ -18824,7 +18118,7 @@ index 000000000000..e69b179e1812
 +#include "llvm/IR/Function.h"
 +#include "llvm/Support/CodeGen.h"
 +#include "llvm/Support/Debug.h"
-+#include "llvm/Support/TargetRegistry.h"
++#include "llvm/MC/TargetRegistry.h"
 +#include "llvm/Support/raw_ostream.h"
 +#include "llvm/Target/TargetOptions.h"
 +#include <string>
@@ -19523,7 +18817,7 @@ index 000000000000..74c30732e3e2
 +#endif
 diff --git a/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchAsmBackend.cpp b/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchAsmBackend.cpp
 new file mode 100644
-index 000000000000..50fdc0e4cc77
+index 000000000000..b0b6f0508468
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchAsmBackend.cpp
 @@ -0,0 +1,233 @@
@@ -19707,7 +19001,7 @@ index 000000000000..50fdc0e4cc77
 +/// it should return an error.
 +///
 +/// \return - True on success.
-+bool LoongArchAsmBackend::writeNopData(raw_ostream &OS, uint64_t Count) const {
++bool LoongArchAsmBackend::writeNopData(raw_ostream &OS, uint64_t Count, const MCSubtargetInfo *STI) const {
 +  // Check for a less than instruction size number of bytes
 +  if ((Count % 4) != 0)
 +    return false;
@@ -19762,10 +19056,10 @@ index 000000000000..50fdc0e4cc77
 +}
 diff --git a/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchAsmBackend.h b/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchAsmBackend.h
 new file mode 100644
-index 000000000000..c6c28237eb5d
+index 000000000000..9e9899eb9da7
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchAsmBackend.h
-@@ -0,0 +1,88 @@
+@@ -0,0 +1,89 @@
 +//===-- LoongArchAsmBackend.h - LoongArch Asm Backend  ------------------------------===//
 +//
 +// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
@@ -19844,7 +19138,8 @@ index 000000000000..c6c28237eb5d
 +
 +  /// @}
 +
-+  bool writeNopData(raw_ostream &OS, uint64_t Count) const override;
++  bool writeNopData(raw_ostream &OS, uint64_t Count,
++  		const MCSubtargetInfo *STI) const override;
 +
 +  bool shouldForceRelocation(const MCAssembler &Asm, const MCFixup &Fixup,
 +                             const MCValue &Target) override;
@@ -22773,7 +22068,7 @@ index 000000000000..7851d478e913
 +#endif // LLVM_LIB_TARGET_LOONGARCH_MCTARGETDESC_LOONGARCHMCEXPR_H
 diff --git a/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchMCTargetDesc.cpp b/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchMCTargetDesc.cpp
 new file mode 100644
-index 000000000000..8feaacc1025c
+index 000000000000..f69bb74f8943
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchMCTargetDesc.cpp
 @@ -0,0 +1,187 @@
@@ -22808,7 +22103,7 @@ index 000000000000..8feaacc1025c
 +#include "llvm/MC/MachineLocation.h"
 +#include "llvm/Support/ErrorHandling.h"
 +#include "llvm/Support/FormattedStream.h"
-+#include "llvm/Support/TargetRegistry.h"
++#include "llvm/MC/TargetRegistry.h"
 +
 +using namespace llvm;
 +
@@ -23040,7 +22335,7 @@ index 000000000000..56949ef1f7b0
 +#endif
 diff --git a/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchTargetStreamer.cpp b/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchTargetStreamer.cpp
 new file mode 100644
-index 000000000000..87710e136fd7
+index 000000000000..508c255ed12a
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchTargetStreamer.cpp
 @@ -0,0 +1,319 @@
@@ -23308,7 +22603,7 @@ index 000000000000..87710e136fd7
 +      if (Alignment) {
 +        OS.SwitchSection(&Section);
 +        if (Section.UseCodeAlign())
-+          OS.emitCodeAlignment(Alignment, Alignment);
++          OS.emitCodeAlignment(Alignment, &STI, Alignment);
 +        else
 +          OS.emitValueToAlignment(Alignment, 0, 1, Alignment);
 +      }
@@ -23409,7 +22704,7 @@ index 000000000000..6838e4066052
 +add_to_library_groups = LoongArch
 diff --git a/llvm/lib/Target/LoongArch/TargetInfo/LoongArchTargetInfo.cpp b/llvm/lib/Target/LoongArch/TargetInfo/LoongArchTargetInfo.cpp
 new file mode 100644
-index 000000000000..bf776db26175
+index 000000000000..2f6f143dbba3
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/TargetInfo/LoongArchTargetInfo.cpp
 @@ -0,0 +1,33 @@
@@ -23422,7 +22717,7 @@ index 000000000000..bf776db26175
 +//===----------------------------------------------------------------------===//
 +
 +#include "TargetInfo/LoongArchTargetInfo.h"
-+#include "llvm/Support/TargetRegistry.h"
++#include "llvm/MC/TargetRegistry.h"
 +using namespace llvm;
 +
 +Target &llvm::getTheLoongArch32Target() {
@@ -23473,173 +22768,6 @@ index 000000000000..7dce2497f7d9
 +} // namespace llvm
 +
 +#endif // LLVM_LIB_TARGET_LOONGARCH_TARGETINFO_LOONGARCHTARGETINFO_H
-diff --git a/llvm/lib/Transforms/Instrumentation/MemorySanitizer.cpp b/llvm/lib/Transforms/Instrumentation/MemorySanitizer.cpp
-index 4e755bab15f3..3ddf7ba05f38 100644
---- a/llvm/lib/Transforms/Instrumentation/MemorySanitizer.cpp
-+++ b/llvm/lib/Transforms/Instrumentation/MemorySanitizer.cpp
-@@ -384,6 +384,14 @@ static const MemoryMapParams Linux_X86_64_MemoryMapParams = {
- #endif
- };
- 
-+// loongarch64 Linux
-+static const MemoryMapParams Linux_LOONGARCH64_MemoryMapParams = {
-+  0,               // AndMask (not used)
-+  0x008000000000,  // XorMask
-+  0,               // ShadowBase (not used)
-+  0x002000000000,  // OriginBase
-+};
-+
- // mips64 Linux
- static const MemoryMapParams Linux_MIPS64_MemoryMapParams = {
-   0,               // AndMask (not used)
-@@ -445,6 +453,11 @@ static const PlatformMemoryMapParams Linux_X86_MemoryMapParams = {
-   &Linux_X86_64_MemoryMapParams,
- };
- 
-+static const PlatformMemoryMapParams Linux_LOONGARCH_MemoryMapParams = {
-+  nullptr,
-+  &Linux_LOONGARCH64_MemoryMapParams,
-+};
-+
- static const PlatformMemoryMapParams Linux_MIPS_MemoryMapParams = {
-   nullptr,
-   &Linux_MIPS64_MemoryMapParams,
-@@ -502,6 +515,7 @@ public:
- private:
-   friend struct MemorySanitizerVisitor;
-   friend struct VarArgAMD64Helper;
-+  friend struct VarArgLoongArch64Helper;
-   friend struct VarArgMIPS64Helper;
-   friend struct VarArgAArch64Helper;
-   friend struct VarArgPowerPC64Helper;
-@@ -944,6 +958,9 @@ void MemorySanitizer::initializeModule(Module &M) {
-           case Triple::x86:
-             MapParams = Linux_X86_MemoryMapParams.bits32;
-             break;
-+          case Triple::loongarch64:
-+            MapParams = Linux_LOONGARCH_MemoryMapParams.bits64;
-+            break;
-           case Triple::mips64:
-           case Triple::mips64el:
-             MapParams = Linux_MIPS_MemoryMapParams.bits64;
-@@ -4423,6 +4440,117 @@ struct VarArgAMD64Helper : public VarArgHelper {
-   }
- };
- 
-+/// LoongArch64-specific implementation of VarArgHelper.
-+struct VarArgLoongArch64Helper : public VarArgHelper {
-+  Function &F;
-+  MemorySanitizer &MS;
-+  MemorySanitizerVisitor &MSV;
-+  Value *VAArgTLSCopy = nullptr;
-+  Value *VAArgSize = nullptr;
-+
-+  SmallVector<CallInst*, 16> VAStartInstrumentationList;
-+
-+  VarArgLoongArch64Helper(Function &F, MemorySanitizer &MS,
-+                    MemorySanitizerVisitor &MSV) : F(F), MS(MS), MSV(MSV) {}
-+
-+  void visitCallBase(CallBase &CB, IRBuilder<> &IRB) override {
-+    unsigned VAArgOffset = 0;
-+    const DataLayout &DL = F.getParent()->getDataLayout();
-+    for (auto ArgIt = CB.arg_begin() + CB.getFunctionType()->getNumParams(),
-+              End = CB.arg_end();
-+         ArgIt != End; ++ArgIt) {
-+      Triple TargetTriple(F.getParent()->getTargetTriple());
-+      Value *A = *ArgIt;
-+      Value *Base;
-+      uint64_t ArgSize = DL.getTypeAllocSize(A->getType());
-+      Base = getShadowPtrForVAArgument(A->getType(), IRB, VAArgOffset, ArgSize);
-+      VAArgOffset += ArgSize;
-+      VAArgOffset = alignTo(VAArgOffset, 8);
-+      if (!Base)
-+        continue;
-+      IRB.CreateAlignedStore(MSV.getShadow(A), Base, kShadowTLSAlignment);
-+    }
-+
-+    Constant *TotalVAArgSize = ConstantInt::get(IRB.getInt64Ty(), VAArgOffset);
-+    // Here using VAArgOverflowSizeTLS as VAArgSizeTLS to avoid creation of
-+    // a new class member i.e. it is the total size of all VarArgs.
-+    IRB.CreateStore(TotalVAArgSize, MS.VAArgOverflowSizeTLS);
-+  }
-+
-+  /// Compute the shadow address for a given va_arg.
-+  Value *getShadowPtrForVAArgument(Type *Ty, IRBuilder<> &IRB,
-+                                   unsigned ArgOffset, unsigned ArgSize) {
-+    // Make sure we don't overflow __msan_va_arg_tls.
-+    if (ArgOffset + ArgSize > kParamTLSSize)
-+      return nullptr;
-+    Value *Base = IRB.CreatePointerCast(MS.VAArgTLS, MS.IntptrTy);
-+    Base = IRB.CreateAdd(Base, ConstantInt::get(MS.IntptrTy, ArgOffset));
-+    return IRB.CreateIntToPtr(Base, PointerType::get(MSV.getShadowTy(Ty), 0),
-+                              "_msarg");
-+  }
-+
-+  void visitVAStartInst(VAStartInst &I) override {
-+    IRBuilder<> IRB(&I);
-+    VAStartInstrumentationList.push_back(&I);
-+    Value *VAListTag = I.getArgOperand(0);
-+    Value *ShadowPtr, *OriginPtr;
-+    const Align Alignment = Align(8);
-+    std::tie(ShadowPtr, OriginPtr) = MSV.getShadowOriginPtr(
-+        VAListTag, IRB, IRB.getInt8Ty(), Alignment, /*isStore*/ true);
-+    IRB.CreateMemSet(ShadowPtr, Constant::getNullValue(IRB.getInt8Ty()),
-+                     /* size */ 8, Alignment, false);
-+  }
-+
-+  void visitVACopyInst(VACopyInst &I) override {
-+    IRBuilder<> IRB(&I);
-+    VAStartInstrumentationList.push_back(&I);
-+    Value *VAListTag = I.getArgOperand(0);
-+    Value *ShadowPtr, *OriginPtr;
-+    const Align Alignment = Align(8);
-+    std::tie(ShadowPtr, OriginPtr) = MSV.getShadowOriginPtr(
-+        VAListTag, IRB, IRB.getInt8Ty(), Alignment, /*isStore*/ true);
-+    IRB.CreateMemSet(ShadowPtr, Constant::getNullValue(IRB.getInt8Ty()),
-+                     /* size */ 8, Alignment, false);
-+  }
-+
-+  void finalizeInstrumentation() override {
-+    assert(!VAArgSize && !VAArgTLSCopy &&
-+           "finalizeInstrumentation called twice");
-+    IRBuilder<> IRB(MSV.FnPrologueEnd);
-+    VAArgSize = IRB.CreateLoad(IRB.getInt64Ty(), MS.VAArgOverflowSizeTLS);
-+    Value *CopySize = IRB.CreateAdd(ConstantInt::get(MS.IntptrTy, 0),
-+                                    VAArgSize);
-+
-+    if (!VAStartInstrumentationList.empty()) {
-+      // If there is a va_start in this function, make a backup copy of
-+      // va_arg_tls somewhere in the function entry block.
-+      VAArgTLSCopy = IRB.CreateAlloca(Type::getInt8Ty(*MS.C), CopySize);
-+      IRB.CreateMemCpy(VAArgTLSCopy, Align(8), MS.VAArgTLS, Align(8), CopySize);
-+    }
-+
-+    // Instrument va_start.
-+    // Copy va_list shadow from the backup copy of the TLS contents.
-+    for (size_t i = 0, n = VAStartInstrumentationList.size(); i < n; i++) {
-+      CallInst *OrigInst = VAStartInstrumentationList[i];
-+      IRBuilder<> IRB(OrigInst->getNextNode());
-+      Value *VAListTag = OrigInst->getArgOperand(0);
-+      Type *RegSaveAreaPtrTy = Type::getInt64PtrTy(*MS.C);
-+      Value *RegSaveAreaPtrPtr =
-+          IRB.CreateIntToPtr(IRB.CreatePtrToInt(VAListTag, MS.IntptrTy),
-+                             PointerType::get(RegSaveAreaPtrTy, 0));
-+      Value *RegSaveAreaPtr =
-+          IRB.CreateLoad(RegSaveAreaPtrTy, RegSaveAreaPtrPtr);
-+      Value *RegSaveAreaShadowPtr, *RegSaveAreaOriginPtr;
-+      const Align Alignment = Align(8);
-+      std::tie(RegSaveAreaShadowPtr, RegSaveAreaOriginPtr) =
-+          MSV.getShadowOriginPtr(RegSaveAreaPtr, IRB, IRB.getInt8Ty(),
-+                                 Alignment, /*isStore*/ true);
-+      IRB.CreateMemCpy(RegSaveAreaShadowPtr, Alignment, VAArgTLSCopy, Alignment,
-+                       CopySize);
-+    }
-+  }
-+};
-+
- /// MIPS64-specific implementation of VarArgHelper.
- struct VarArgMIPS64Helper : public VarArgHelper {
-   Function &F;
 diff --git a/llvm/test/CodeGen/LoongArch/atomic-operand-imm0.ll b/llvm/test/CodeGen/LoongArch/atomic-operand-imm0.ll
 new file mode 100644
 index 000000000000..d1d0c0bc42f8
@@ -27119,180 +26247,6 @@ index 000000000000..0792216a977d
 +break          199                           # CHECK: break           199                           # encoding: [0xc7,0x00,0x2a,0x00]
 +dbcl           201                           # CHECK: dbcl            201                           # encoding: [0xc9,0x80,0x2a,0x00]
 +syscall        100                           # CHECK: syscall         100                           # encoding: [0x64,0x00,0x2b,0x00]
-diff --git a/llvm/tools/llvm-readobj/ELFDumper.cpp b/llvm/tools/llvm-readobj/ELFDumper.cpp
-index f221acba979a..e4501c09c74a 100644
---- a/llvm/tools/llvm-readobj/ELFDumper.cpp
-+++ b/llvm/tools/llvm-readobj/ELFDumper.cpp
-@@ -1183,6 +1183,7 @@ static const EnumEntry<unsigned> ElfMachineType[] = {
-   ENUM_ENT(EM_LANAI,         "EM_LANAI"),
-   ENUM_ENT(EM_BPF,           "EM_BPF"),
-   ENUM_ENT(EM_VE,            "NEC SX-Aurora Vector Engine"),
-+  ENUM_ENT(EM_LOONGARCH,     "LoongArch"),
- };
- 
- static const EnumEntry<unsigned> ElfSymbolBindings[] = {
-@@ -1590,6 +1591,15 @@ static const EnumEntry<unsigned> ElfHeaderAVRFlags[] = {
- };
- 
- 
-+static const EnumEntry<unsigned> ElfHeaderLoongArchFlags[] = {
-+    ENUM_ENT(EF_LARCH_BASE_ABI_LP64D, "LP64D"),
-+    ENUM_ENT(EF_LARCH_BASE_ABI_LP64S, "LP64S"), ENUM_ENT(EF_LARCH_BASE_ABI_LP64F, "LP64F")
-+    // FIXME: Change these and add more flags in future when all ABIs definition
-+    // were finalized. See current definitions:
-+    // https://loongson.github.io/LoongArch-Documentation/LoongArch-ELF-ABI-EN.html#_e_flags_identifies_abi_type_and_version
-+};
-+
-+
- static const EnumEntry<unsigned> ElfSymOtherFlags[] = {
-   LLVM_READOBJ_ENUM_ENT(ELF, STV_INTERNAL),
-   LLVM_READOBJ_ENUM_ENT(ELF, STV_HIDDEN),
-@@ -3274,6 +3284,11 @@ template <class ELFT> void GNUELFDumper<ELFT>::printFileHeaders() {
-   else if (e.e_machine == EM_AVR)
-     ElfFlags = printFlags(e.e_flags, makeArrayRef(ElfHeaderAVRFlags),
-                           unsigned(ELF::EF_AVR_ARCH_MASK));
-+  else if (e.e_machine == EM_RISCV)
-+    ElfFlags = printFlags(e.e_flags, makeArrayRef(ElfHeaderRISCVFlags));
-+  else if (e.e_machine == EM_LOONGARCH)
-+    ElfFlags = printFlags(e.e_flags, makeArrayRef(ElfHeaderLoongArchFlags),
-+                          unsigned(ELF::EF_LARCH_BASE_ABI));
-   Str = "0x" + to_hexString(e.e_flags);
-   if (!ElfFlags.empty())
-     Str = Str + ", " + ElfFlags;
-@@ -6289,6 +6304,9 @@ template <class ELFT> void LLVMELFDumper<ELFT>::printFileHeaders() {
-     else if (E.e_machine == EM_AVR)
-       W.printFlags("Flags", E.e_flags, makeArrayRef(ElfHeaderAVRFlags),
-                    unsigned(ELF::EF_AVR_ARCH_MASK));
-+
-+    else if (E.e_machine == EM_LOONGARCH)
-+      W.printFlags("Flags", E.e_flags, makeArrayRef(ElfHeaderLoongArchFlags));
-     else
-       W.printFlags("Flags", E.e_flags);
-     W.printNumber("HeaderSize", E.e_ehsize);
-diff --git a/llvm/utils/UpdateTestChecks/asm.py b/llvm/utils/UpdateTestChecks/asm.py
-index 2a18899d55f0..4eec83ed03ae 100644
---- a/llvm/utils/UpdateTestChecks/asm.py
-+++ b/llvm/utils/UpdateTestChecks/asm.py
-@@ -71,6 +71,11 @@ ASM_FUNCTION_MSP430_RE = re.compile(
-     r'^_?(?P<func>[^:]+):[ \t]*;+[ \t]*@"?(?P=func)"?\n[^:]*?'
-     r'(?P<body>.*?)\n'
-     r'(\$|\.L)func_end[0-9]+:\n',             # $func_end0:
-+
-+ASM_FUNCTION_LOONGARCH_RE = re.compile(
-+    r'^_?(?P<func>[^:]+):[ \t]*#+[ \t]*@(?P=func)\n[^:]*?' # f: (name of func)
-+    r'(?P<body>^##?[ \t]+[^:]+:.*?)\s*'                    # (body of the function)
-+    r'.Lfunc_end[0-9]+:\n',                                # .Lfunc_end[0-9]:
-     flags=(re.M | re.S))
- 
- ASM_FUNCTION_AVR_RE = re.compile(
-@@ -303,6 +308,17 @@ def scrub_asm_avr(asm, args):
-   asm = common.SCRUB_TRAILING_WHITESPACE_RE.sub(r'', asm)
-   return asm
- 
-+def scrub_asm_loongarch(asm, args):
-+  # Scrub runs of whitespace out of the assembly, but leave the leading
-+  # whitespace in place.
-+  asm = common.SCRUB_WHITESPACE_RE.sub(r' ', asm)
-+  # Expand the tabs used for indentation.
-+  asm = string.expandtabs(asm, 2)
-+  # Strip trailing whitespace.
-+  asm = common.SCRUB_TRAILING_WHITESPACE_RE.sub(r'', asm)
-+  return asm
-+
-+
- def scrub_asm_riscv(asm, args):
-   # Scrub runs of whitespace out of the assembly, but leave the leading
-   # whitespace in place.
-@@ -397,6 +413,7 @@ def get_run_handler(triple):
-       'avr': (scrub_asm_avr, ASM_FUNCTION_AVR_RE),
-       'ppc32': (scrub_asm_powerpc, ASM_FUNCTION_PPC_RE),
-       'powerpc': (scrub_asm_powerpc, ASM_FUNCTION_PPC_RE),
-+      'loongarch64': (scrub_asm_loongarch, ASM_FUNCTION_LOONGARCH_RE),
-       'riscv32': (scrub_asm_riscv, ASM_FUNCTION_RISCV_RE),
-       'riscv64': (scrub_asm_riscv, ASM_FUNCTION_RISCV_RE),
-       'lanai': (scrub_asm_lanai, ASM_FUNCTION_LANAI_RE),
-diff --git a/llvm/utils/benchmark/src/benchmark_register.h b/llvm/utils/benchmark/src/benchmark_register.h
-index 4caa5ad4da07..11258aa986a0 100644
---- a/llvm/utils/benchmark/src/benchmark_register.h
-+++ b/llvm/utils/benchmark/src/benchmark_register.h
-@@ -3,6 +3,7 @@
- 
- #include <limits>
- #include <vector>
-+#include <limits>
- 
- #include "check.h"
- 
-diff --git a/llvm/utils/benchmark/src/cycleclock.h b/llvm/utils/benchmark/src/cycleclock.h
-index 040ec22c20a9..5580cfad9ee5 100644
---- a/llvm/utils/benchmark/src/cycleclock.h
-+++ b/llvm/utils/benchmark/src/cycleclock.h
-@@ -167,6 +167,12 @@ inline BENCHMARK_ALWAYS_INLINE int64_t Now() {
-   struct timeval tv;
-   gettimeofday(&tv, nullptr);
-   return static_cast<int64_t>(tv.tv_sec) * 1000000 + tv.tv_usec;
-+#elif defined(__loongarch__)
-+  // loongarch apparently only allows rdtsc for superusers, so we fall
-+  // back to gettimeofday.  It's possible clock_gettime would be better.
-+  struct timeval tv;
-+  gettimeofday(&tv, nullptr);
-+  return static_cast<int64_t>(tv.tv_sec) * 1000000 + tv.tv_usec;
- #elif defined(__s390__) // Covers both s390 and s390x.
-   // Return the CPU clock.
-   uint64_t tsc;
-diff --git a/llvm/utils/gn/secondary/clang/lib/Basic/BUILD.gn b/llvm/utils/gn/secondary/clang/lib/Basic/BUILD.gn
-index 35567460f01a..a7dae976cbdc 100644
---- a/llvm/utils/gn/secondary/clang/lib/Basic/BUILD.gn
-+++ b/llvm/utils/gn/secondary/clang/lib/Basic/BUILD.gn
-@@ -94,6 +94,7 @@ static_library("Basic") {
-     "Targets/Lanai.cpp",
-     "Targets/Le64.cpp",
-     "Targets/M68k.cpp",
-+    "Targets/LoongArch.cpp",
-     "Targets/MSP430.cpp",
-     "Targets/Mips.cpp",
-     "Targets/NVPTX.cpp",
-diff --git a/llvm/utils/gn/secondary/clang/lib/Driver/BUILD.gn b/llvm/utils/gn/secondary/clang/lib/Driver/BUILD.gn
-index 73cdf4abb978..3522076d47ca 100644
---- a/llvm/utils/gn/secondary/clang/lib/Driver/BUILD.gn
-+++ b/llvm/utils/gn/secondary/clang/lib/Driver/BUILD.gn
-@@ -48,6 +48,7 @@ static_library("Driver") {
-     "ToolChains/Arch/AArch64.cpp",
-     "ToolChains/Arch/ARM.cpp",
-     "ToolChains/Arch/M68k.cpp",
-+    "ToolChains/Arch/LoongArch.cpp",
-     "ToolChains/Arch/Mips.cpp",
-     "ToolChains/Arch/PPC.cpp",
-     "ToolChains/Arch/RISCV.cpp",
-diff --git a/llvm/utils/gn/secondary/llvm/include/llvm/IR/BUILD.gn b/llvm/utils/gn/secondary/llvm/include/llvm/IR/BUILD.gn
-index f12d39ad6e46..1280c7483486 100644
---- a/llvm/utils/gn/secondary/llvm/include/llvm/IR/BUILD.gn
-+++ b/llvm/utils/gn/secondary/llvm/include/llvm/IR/BUILD.gn
-@@ -67,6 +67,16 @@ tablegen("IntrinsicsHexagon") {
-   td_file = "Intrinsics.td"
- }
- 
-+tablegen("IntrinsicsLoongArch") {
-+  visibility = [ ":public_tablegen" ]
-+  output_name = "IntrinsicsLoongArch.h"
-+  args = [
-+    "-gen-intrinsic-enums",
-+    "-intrinsic-prefix=loongarch",
-+  ]
-+  td_file = "Intrinsics.td"
-+}
-+
- tablegen("IntrinsicsMips") {
-   visibility = [ ":public_tablegen" ]
-   output_name = "IntrinsicsMips.h"
-@@ -186,6 +196,7 @@ group("public_tablegen") {
-     ":IntrinsicsARM",
-     ":IntrinsicsBPF",
-     ":IntrinsicsHexagon",
-+    ":IntrinsicsLoongArch",
-     ":IntrinsicsMips",
-     ":IntrinsicsNVPTX",
-     ":IntrinsicsPowerPC",
 diff --git a/llvm/utils/gn/secondary/llvm/lib/Target/LoongArch/AsmParser/BUILD.gn b/llvm/utils/gn/secondary/llvm/lib/Target/LoongArch/AsmParser/BUILD.gn
 new file mode 100644
 index 000000000000..cc3bb49a6ac7
@@ -27555,32 +26509,4 @@ index 000000000000..a476bdd5fd16
 +    "LoongArchTargetInfo.cpp",
 +  ]
 +}
-diff --git a/llvm/utils/gn/secondary/llvm/lib/Target/targets.gni b/llvm/utils/gn/secondary/llvm/lib/Target/targets.gni
-index 22da518ea1fb..3ed8ad48889d 100644
---- a/llvm/utils/gn/secondary/llvm/lib/Target/targets.gni
-+++ b/llvm/utils/gn/secondary/llvm/lib/Target/targets.gni
-@@ -14,6 +14,7 @@ llvm_all_targets = [
-   "BPF",
-   "Hexagon",
-   "Lanai",
-+  "LoongArch",
-   "Mips",
-   "NVPTX",
-   "PowerPC",
-@@ -47,6 +48,7 @@ llvm_build_AArch64 = false
- llvm_build_AMDGPU = false
- llvm_build_ARM = false
- llvm_build_BPF = false
-+llvm_build_LoongArch = false
- llvm_build_Mips = false
- llvm_build_PowerPC = false
- llvm_build_SystemZ = false
-@@ -61,6 +63,8 @@ foreach(target, llvm_targets_to_build) {
-     llvm_build_ARM = true
-   } else if (target == "BPF") {
-     llvm_build_BPF = true
-+  } else if (target == "LoongArch") {
-+    llvm_build_BPF = true
-   } else if (target == "Mips") {
-     llvm_build_Mips = true
-   } else if (target == "PowerPC") {
+

@@ -2979,7 +2979,7 @@ index 000000000000..df851fe30932
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/CMakeLists.txt
 @@ -0,0 +1,56 @@
-+add_llvm_component_group(LoongArch HAS_JIT)
++add_llvm_component_group(LoongArch)
 +
 +set(LLVM_TARGET_DEFINITIONS LoongArch.td)
 +
@@ -3019,8 +3019,8 @@ index 000000000000..df851fe30932
 +  Core
 +  CodeGen
 +  MC
-+  RISCVDesc
-+  RISCVInfo
++  LoongArchDesc
++  LoongArchInfo
 +  SelectionDAG
 +  Support
 +  Target
