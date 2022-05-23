@@ -1,0 +1,85 @@
+diff -ur a/boostcpp.jam b/boostcpp.jam
+--- a/boostcpp.jam	2022-05-13 22:32:25.080000000 +0800
++++ b/boostcpp.jam	2022-05-13 22:35:25.928000000 +0800
+@@ -634,7 +634,7 @@
+     return <conditional>@boostcpp.deduce-address-model ;
+ }
+ 
+-local deducable-architectures = arm mips1 power riscv s390x sparc x86 combined ;
++local deducable-architectures = arm loongarch mips1 power riscv s390x sparc x86 combined ;
+ feature.feature deduced-architecture : $(deducable-architectures) : propagated optional composite hidden ;
+ for a in $(deducable-architectures)
+ {
+@@ -645,9 +645,10 @@
+ {
+     local result ;
+     local filtered = [ toolset-properties $(properties) ] ;
+-    local names = arm mips1 power riscv s390x sparc x86 combined ;
++    local names = arm loongarch mips1 power riscv s390x sparc x86 combined ;
+     local idx = [ configure.find-builds "default architecture" : $(filtered)
+         : /boost/architecture//arm
++	: /boost/architecture//loongarch
+         : /boost/architecture//mips1
+         : /boost/architecture//power
+         : /boost/architecture//riscv
+diff -ur a/libs/config/checks/architecture/Jamfile.jam b/libs/config/checks/architecture/Jamfile.jam
+--- a/libs/config/checks/architecture/Jamfile.jam	2022-05-13 22:32:27.756000000 +0800
++++ b/libs/config/checks/architecture/Jamfile.jam	2022-05-13 22:33:34.904000000 +0800
+@@ -24,3 +24,4 @@
+ obj sparc    : sparc.cpp ;
+ obj x86      : x86.cpp ;
+ obj s390x    : s390x.cpp ;
++ obj loongarch    : loongarch.cpp ;
+
+diff -uNr a/libs/config/checks/architecture/loongarch.cpp b/libs/config/checks/architecture/loongarch.cpp
+--- a/libs/config/checks/architecture/loongarch.cpp	1970-01-01 08:00:00.000000000 +0800
++++ b/libs/config/checks/architecture/loongarch.cpp	2022-05-13 23:03:18.016000000 +0800
+@@ -0,0 +1,11 @@
++// loongarch.cpp
++//
++// Copyright (c) 2012
++//
++// Distributed under the Boost Software License Version 1.0. (See
++// accompanying file LICENSE_1_0.txt or copy at
++// http://www.boost.org/LICENSE_1_0.txt)
++
++#if !defined(__loongarch__)
++#error "Not LOONGARCH"
++#endif
+diff -uNr a/tools/build/src/engine/jam.h b/tools/build/src/engine/jam.h
+--- a/tools/build/src/engine/jam.h	2022-05-13 23:00:51.528000000 +0800
++++ b/tools/build/src/engine/jam.h	2022-05-13 23:06:51.704000000 +0800
+@@ -441,6 +441,10 @@
+     #define OSPLAT "OSPLAT=PARISC"
+ #endif
+ 
++#ifdef __loongarch64
++    #define OSPLAT "OSPLAT=LOONGARCH64"
++#endif
++
+ #ifndef OSPLAT
+     #define OSPLAT ""
+ #endif
+diff -uNr a/tools/build/src/tools/builtin.py b/tools/build/src/tools/builtin.py
+--- a/tools/build/src/tools/builtin.py	2022-05-13 23:00:51.544000000 +0800
++++ b/tools/build/src/tools/builtin.py	2022-05-13 23:08:38.640000000 +0800
+@@ -273,6 +273,9 @@
+         # z Systems (aka s390x)
+         's390x',
+ 
++        # LoongArch
++        'loongarch',
++
+         # Combined architectures for platforms/toolsets that support building for
+         # multiple architectures at once. "combined" would be the default multi-arch
+         # for the toolset.
+@@ -331,6 +334,9 @@
+         'armv2', 'armv2a', 'armv3', 'armv3m', 'armv4', 'armv4t', 'armv5',
+         'armv5t', 'armv5te', 'armv6', 'armv6j', 'iwmmxt', 'ep9312',
+ 
++        # loongarch 
++        'loongarch',
++
+         # z Systems (aka s390x)
+         'z196', 'zEC12', 'z13', 'z13', 'z14', 'z15'],
+ 
