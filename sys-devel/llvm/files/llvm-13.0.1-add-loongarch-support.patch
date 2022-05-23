@@ -23,20 +23,6 @@ index dd0aaadb47c7..95e699d9e276 100644
  else ()
    message(FATAL_ERROR "Unknown architecture ${LLVM_NATIVE_ARCH}")
  endif ()
-diff --git a/llvm/cmake/config.guess b/llvm/cmake/config.guess
-index 60d3f588d6f7..255257d40b63 100644
---- a/llvm/cmake/config.guess
-+++ b/llvm/cmake/config.guess
-@@ -1021,6 +1021,9 @@ EOF
-     x86_64:Linux:*:*)
- 	echo x86_64-unknown-linux-gnu
- 	exit ;;
-+    loongarch64:Linux:*:*)
-+	echo loongarch64-unknown-linux-gnu
-+	exit ;;
-     xtensa*:Linux:*:*)
- 	echo ${UNAME_MACHINE}-unknown-linux-gnu
- 	exit ;;
 diff --git a/llvm/include/llvm/ADT/Triple.h b/llvm/include/llvm/ADT/Triple.h
 index 76f3514050f0..49b382672bc3 100644
 --- a/llvm/include/llvm/ADT/Triple.h
