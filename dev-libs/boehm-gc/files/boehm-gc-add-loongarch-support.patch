@@ -1,0 +1,65 @@
+diff -ur a/include/private/gcconfig.h b/include/private/gcconfig.h
+--- a/include/private/gcconfig.h	2022-05-06 22:57:52.264000000 +0800
++++ b/include/private/gcconfig.h	2022-05-06 22:57:55.568000000 +0800
+@@ -238,6 +238,10 @@
+ #    define VAX
+ #    define mach_type_known
+ # endif
++# if defined(__loongarch64) 
++#    define LOONGARCH64
++#    define mach_type_known
++# endif
+ # if defined(mips) || defined(__mips) || defined(_mips)
+ #    define MIPS
+ #    if defined(nec_ews) || defined(_nec_ews)
+@@ -514,6 +518,10 @@
+ #   define AARCH64
+ #   define mach_type_known
+ # endif
++# if defined(FREEBSD) && (defined(__loongarch64) )
++#   define LOONGARCH64
++#   define mach_type_known
++# endif
+ # if defined(FREEBSD) && (defined(mips) || defined(__mips) || defined(_mips))
+ #   define MIPS
+ #   define mach_type_known
+@@ -1732,6 +1740,26 @@
+ #   define STACKBOTTOM ((ptr_t)0xfffff000) /* for Encore */
+ # endif
+ 
++# ifdef LOONGARCH64
++#   define MACH_TYPE "LOONGARCH64"
++#   ifdef LINUX
++#     define OS_TYPE "LINUX"
++#     define DYNAMIC_LOADING
++      extern int _end[];
++#     pragma weak __data_start
++      extern int __data_start[];
++#     define DATASTART ((ptr_t)(__data_start))
++#     define DATAEND ((ptr_t)(_end))
++#     define CPP_WORDSZ 64
++#     define ALIGNMENT (64/8)
++#     ifndef HBLKSIZE
++#       define HBLKSIZE 4096
++#     endif
++#     define LINUX_STACKBOTTOM
++#   endif
++# endif
++
++
+ # ifdef MIPS
+ #   define MACH_TYPE "MIPS"
+ #   ifdef LINUX
+只在 b/include/private 存在：gcconfig.h.orig
+diff -ur a/os_dep.c b/os_dep.c
+--- a/os_dep.c	2022-05-06 22:57:52.256000000 +0800
++++ b/os_dep.c	2022-05-06 22:59:07.104000000 +0800
+@@ -3144,7 +3144,7 @@
+ #     ifndef SEGV_ACCERR
+ #       define SEGV_ACCERR 2
+ #     endif
+-#     if defined(AARCH64) || defined(ARM32) || defined(MIPS) \
++#     if defined(AARCH64) || defined(ARM32) || defined(MIPS) || defined(LOONGARCH64) \
+          || __FreeBSD__ >= 7
+ #       define CODE_OK (si -> si_code == SEGV_ACCERR)
+ #     elif defined(POWERPC)
