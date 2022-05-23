@@ -1,0 +1,21 @@
+diff -ur a/src/3rdparty/javascriptcore/JavaScriptCore/runtime/JSValue.h b/src/3rdparty/javascriptcore/JavaScriptCore/runtime/JSValue.h
+--- a/src/3rdparty/javascriptcore/JavaScriptCore/runtime/JSValue.h	2022-05-13 17:39:55.792000000 +0800
++++ b/src/3rdparty/javascriptcore/JavaScriptCore/runtime/JSValue.h	2022-05-13 17:40:41.920000000 +0800
+@@ -490,7 +490,7 @@
+             u.asBits.tag = CellTag;
+         else
+             u.asBits.tag = EmptyValueTag;
+-        u.asBits.payload = reinterpret_cast<int32_t>(ptr);
++        u.asBits.payload = reinterpret_cast<int64_t>(ptr);
+ #if ENABLE(JSC_ZOMBIES)
+         ASSERT(!isZombie());
+ #endif
+@@ -502,7 +502,7 @@
+             u.asBits.tag = CellTag;
+         else
+             u.asBits.tag = EmptyValueTag;
+-        u.asBits.payload = reinterpret_cast<int32_t>(const_cast<JSCell*>(ptr));
++        u.asBits.payload = reinterpret_cast<int64_t>(const_cast<JSCell*>(ptr));
+ #if ENABLE(JSC_ZOMBIES)
+         ASSERT(!isZombie());
+ #endif
