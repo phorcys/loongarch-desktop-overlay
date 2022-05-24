@@ -15,3 +15,12 @@ These patches are not suitable for upstream, or current upstream is not ready fo
 * rust ( 1.58.1 1.59.0 1.60.0)
 * webkit-gtk ( 2.36.1 )
 * gstreamer ( 1.20.1 )
+* librsvg (1.54.x)
+
+# temp fix packages:
+ 
+* boehm-gc
+* boost
+* qtscript
+* samba
+
