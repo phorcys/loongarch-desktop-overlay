@@ -1,0 +1,11 @@
+DEFINED_PHASES=install
+DESCRIPTION=Bootstrap package for dev-lang/go
+EAPI=8
+HOMEPAGE=https://golang.org
+IUSE=big-endian
+KEYWORDS=-* amd64 arm arm64 ~loong ppc64 ~riscv ~s390 x86 ~amd64-linux ~x86-linux ~x64-macos ~x64-solaris
+LICENSE=BSD
+RESTRICT=strip
+SLOT=0
+SRC_URI=loong? ( https://github.com/phorcys/loongarch-desktop-overlay/releases/download/20220517/go-linux-loong64-bootstrap.tbz )
+_md5_=002cb13cac6295c1934c2d2f03768430

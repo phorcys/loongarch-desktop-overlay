@@ -1,0 +1,15 @@
+diff -uNr a/Source/cmake/OptionsGTK.cmake b/Source/cmake/OptionsGTK.cmake
+--- a/Source/cmake/OptionsGTK.cmake	2022-05-24 17:27:55.804000000 +0800
++++ b/Source/cmake/OptionsGTK.cmake	2022-05-24 17:30:52.228000000 +0800
+@@ -460,9 +460,9 @@
+ endif ()
+ 
+ if (USE_OPENJPEG)
+-    find_package(OpenJPEG 2.2.0)
++    find_package(OpenJPEG)
+     if (NOT OpenJPEG_FOUND)
+-        message(FATAL_ERROR "libopenjpeg 2.2.0 is required for USE_OPENJPEG.")
++        message(FATAL_ERROR "libopenjpeg is required for USE_OPENJPEG.")
+     endif ()
+ endif ()
+ 
