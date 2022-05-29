@@ -33,7 +33,7 @@ RDEPEND="
 	introspection? ( >=dev-libs/gobject-introspection-0.10.8:= )
 "
 DEPEND="${RDEPEND}
-	>=virtual/rust-1.56[${MULTILIB_USEDEP}]
+	virtual/rust
 	${PYTHON_DEPS}
 	$(python_gen_any_dep 'dev-python/docutils[${PYTHON_USEDEP}]')
 	gtk-doc? ( dev-util/gi-docgen )
@@ -44,10 +44,6 @@ DEPEND="${RDEPEND}
 	dev-libs/vala-common
 "
 
-PATCHES=(
-      "${FILESDIR}"/${P}-loongarch-fix-cfg-expr.patch
-)
-
 # dev-libs/gobject-introspection-common, dev-libs/vala-common needed by eautoreconf
 
 QA_FLAGS_IGNORED="
@@ -56,6 +52,7 @@ QA_FLAGS_IGNORED="
 "
 
 src_prepare() {
+	eapply "${FILESDIR}"/librsvg-2.54.3-loongarch-fix-cfg-expr.patch
 	use vala && vala_src_prepare
 	gnome2_src_prepare
 }
