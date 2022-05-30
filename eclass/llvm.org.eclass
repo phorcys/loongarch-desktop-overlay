@@ -150,9 +150,9 @@ case ${PV} in
 		)
 		;;
 	*)
-		ALL_LLVM_EXPERIMENTAL_TARGETS=( ARC CSKY M68k )
+		ALL_LLVM_EXPERIMENTAL_TARGETS=( ARC CSKY LoongArch M68k )
 		ALL_LLVM_PRODUCTION_TARGETS=(
-			AArch64 AMDGPU ARM AVR BPF Hexagon Lanai LoongArch Mips MSP430 NVPTX
+			AArch64 AMDGPU ARM AVR BPF Hexagon Lanai Mips MSP430 NVPTX
 			PowerPC RISCV Sparc SystemZ VE WebAssembly X86 XCore
 		)
 		;;
@@ -213,7 +213,6 @@ llvm.org_set_globals() {
 			SRC_URI+="
 				!doc? (
 					https://dev.gentoo.org/~mgorny/dist/llvm/llvm-${PV}-manpages.tar.bz2
-					https://dev.gentoo.org/~sam/distfiles/llvm/llvm-${PV}-manpages.tar.bz2
 				)"
 			;;
 		*)
@@ -222,8 +221,7 @@ llvm.org_set_globals() {
 
 	if [[ -n ${LLVM_PATCHSET} ]]; then
 		SRC_URI+="
-			https://dev.gentoo.org/~mgorny/dist/llvm/llvm-gentoo-patchset-${LLVM_PATCHSET}.tar.xz
-			https://dev.gentoo.org/~sam/distfiles/llvm/llvm-gentoo-patchset-${LLVM_PATCHSET}.tar.xz"
+			https://dev.gentoo.org/~mgorny/dist/llvm/llvm-gentoo-patchset-${LLVM_PATCHSET}.tar.xz"
 	fi
 
 	local x
@@ -323,17 +321,19 @@ llvm.org_src_prepare() {
 		)
 	fi
 
+	pushd "${WORKDIR}" >/dev/null || die
 	if declare -f cmake_src_prepare >/dev/null; then
-		# cmake eclasses force ${S} for default_src_prepare
-		# but use ${CMAKE_USE_DIR} for everything else
-		CMAKE_USE_DIR=${S} \
-		S=${WORKDIR} \
+		CMAKE_USE_DIR=${S}
+		if [[ ${EAPI} == 7 ]]; then
+			# cmake eclasses force ${S} for default_src_prepare in EAPI 7
+			# but use ${CMAKE_USE_DIR} for everything else
+			local S=${WORKDIR}
+		fi
 		cmake_src_prepare
 	else
-		pushd "${WORKDIR}" >/dev/null || die
 		default_src_prepare
-		popd >/dev/null || die
 	fi
+	popd >/dev/null || die
 }
 
 
@@ -351,7 +351,7 @@ llvm.org_src_prepare() {
 # Get the standard recommended lit flags for running tests, in CMake
 # list form (;-separated).
 get_lit_flags() {
-	echo "-vv;-j;${LIT_JOBS:-$(makeopts_jobs "${MAKEOPTS}" "$(get_nproc)")}"
+	echo "-vv;-j;${LIT_JOBS:-$(makeopts_jobs)}"
 }
 
 # @FUNCTION: llvm_are_manpages_built

@@ -1,0 +1,661 @@
+--- clang-14.0.1-add-loongarch-support.patch	2022-05-03 02:03:16.324000000 +0800
++++ clang-14.0.4-loongarch.patch	2022-05-29 19:18:09.700000000 +0800
+@@ -1,6 +1,6 @@
+ diff --git a/clang/include/clang/Basic/BuiltinsLoongArch.def b/clang/include/clang/Basic/BuiltinsLoongArch.def
+ new file mode 100644
+-index 000000000000..7e281463b118
++index 0000000000000..7e281463b1189
+ --- /dev/null
+ +++ b/clang/include/clang/Basic/BuiltinsLoongArch.def
+ @@ -0,0 +1,56 @@
+@@ -61,7 +61,7 @@
+ +BUILTIN(__builtin_loongarch_ibar, "vIULi", "nc")
+ +#undef BUILTIN
+ diff --git a/clang/include/clang/Basic/DiagnosticDriverKinds.td b/clang/include/clang/Basic/DiagnosticDriverKinds.td
+-index 3efedbe0f642..abcdec74627f 100644
++index 3efedbe0f6428..abcdec74627fe 100644
+ --- a/clang/include/clang/Basic/DiagnosticDriverKinds.td
+ +++ b/clang/include/clang/Basic/DiagnosticDriverKinds.td
+ @@ -193,6 +193,8 @@ def err_drv_force_crash : Error<
+@@ -74,7 +74,7 @@
+    "invalid thread pointer reading mode '%0'">;
+  def err_drv_missing_arg_mtp : Error<
+ diff --git a/clang/include/clang/Basic/TargetBuiltins.h b/clang/include/clang/Basic/TargetBuiltins.h
+-index d4ea8e98b2e3..5f3851af4940 100644
++index d4ea8e98b2e3f..d2008721f1c33 100644
+ --- a/clang/include/clang/Basic/TargetBuiltins.h
+ +++ b/clang/include/clang/Basic/TargetBuiltins.h
+ @@ -145,6 +145,16 @@ namespace clang {
+@@ -94,18 +94,19 @@
+    /// Flags to identify the types for overloaded Neon builtins.
+    ///
+    /// These must be kept in sync with the flags in utils/TableGen/NeonEmitter.h.
+-@@ -336,7 +346,8 @@ namespace clang {
++@@ -336,8 +346,8 @@ namespace clang {
+         PPC::LastTSBuiltin, NVPTX::LastTSBuiltin, AMDGPU::LastTSBuiltin,
+         X86::LastTSBuiltin, VE::LastTSBuiltin, RISCV::LastTSBuiltin,
+         Hexagon::LastTSBuiltin, Mips::LastTSBuiltin, XCore::LastTSBuiltin,
+ -       SystemZ::LastTSBuiltin, WebAssembly::LastTSBuiltin});
++-
+ +       SystemZ::LastTSBuiltin, WebAssembly::LastTSBuiltin,
+ +       LoongArch::LastTSBuiltin});
+- 
+  } // end namespace clang.
+  
++ #endif
+ diff --git a/clang/include/clang/Basic/TargetCXXABI.def b/clang/include/clang/Basic/TargetCXXABI.def
+-index 9501cca76094..7fa2268a911a 100644
++index 9501cca760945..8ea4beceff048 100644
+ --- a/clang/include/clang/Basic/TargetCXXABI.def
+ +++ b/clang/include/clang/Basic/TargetCXXABI.def
+ @@ -88,6 +88,12 @@ ITANIUM_CXXABI(GenericAArch64, "aarch64")
+@@ -116,25 +117,26 @@
+ +///
+ +/// At the moment, only change from the generic ABI in this case is:
+ +///   - representation of member function pointers adjusted as in ARM.
+-+ITANIUM_CXXABI(GenericLoongArch,"loongarch64")
+++ITANIUM_CXXABI(GenericLoongArch, "loongarch")
+ +
+  /// The WebAssembly ABI is a modified version of the Itanium ABI.
+  ///
+  /// The changes from the Itanium ABI are:
+ diff --git a/clang/include/clang/Basic/TargetCXXABI.h b/clang/include/clang/Basic/TargetCXXABI.h
+-index e727f85edad7..406b3a1f732d 100644
++index e727f85edad72..ccbd5dfeb7941 100644
+ --- a/clang/include/clang/Basic/TargetCXXABI.h
+ +++ b/clang/include/clang/Basic/TargetCXXABI.h
+-@@ -105,6 +105,8 @@ public:
++@@ -105,6 +105,9 @@ class TargetCXXABI {
+      case GenericMIPS:
+        return T.isMIPS();
+  
+ +    case GenericLoongArch:
+-+		return T.isLoongArch();
+++      return T.isLoongArch();
+++
+      case WebAssembly:
+        return T.isWasm();
+  
+-@@ -167,6 +169,7 @@ public:
++@@ -167,6 +170,7 @@ class TargetCXXABI {
+      case GenericARM:
+      case GenericAArch64:
+      case GenericMIPS:
+@@ -142,7 +144,7 @@
+        // TODO: ARM-style pointers to member functions put the discriminator in
+        //       the this adjustment, so they don't require functions to have any
+        //       special alignment and could therefore also return false.
+-@@ -251,6 +254,7 @@ public:
++@@ -251,6 +255,7 @@ class TargetCXXABI {
+      case iOS:   // old iOS compilers did not follow this rule
+      case Microsoft:
+      case GenericMIPS:
+@@ -150,7 +152,7 @@
+      case XL:
+        return true;
+      }
+-@@ -289,6 +293,7 @@ public:
++@@ -289,6 +294,7 @@ class TargetCXXABI {
+      case GenericARM:
+      case iOS:
+      case GenericMIPS:
+@@ -159,7 +161,7 @@
+        return UseTailPaddingUnlessPOD03;
+  
+ diff --git a/clang/include/clang/Driver/Options.td b/clang/include/clang/Driver/Options.td
+-index 602586f94603..8500241358f5 100644
++index e0d2158407145..60ce2374fd1a8 100644
+ --- a/clang/include/clang/Driver/Options.td
+ +++ b/clang/include/clang/Driver/Options.td
+ @@ -176,6 +176,8 @@ def m_x86_Features_Group : OptionGroup<"<x86 features group>">,
+@@ -187,10 +189,10 @@
+  def mx87 : Flag<["-"], "mx87">, Group<m_x86_Features_Group>;
+  def mno_x87 : Flag<["-"], "mno-x87">, Group<m_x86_Features_Group>;
+ diff --git a/clang/include/clang/Sema/Sema.h b/clang/include/clang/Sema/Sema.h
+-index 4b609f4b1477..f5ea9f1f73e8 100644
++index 4b609f4b1477c..f5ea9f1f73e80 100644
+ --- a/clang/include/clang/Sema/Sema.h
+ +++ b/clang/include/clang/Sema/Sema.h
+-@@ -12727,6 +12727,9 @@ private:
++@@ -12727,6 +12727,9 @@ class Sema final {
+    bool CheckBPFBuiltinFunctionCall(unsigned BuiltinID, CallExpr *TheCall);
+    bool CheckHexagonBuiltinFunctionCall(unsigned BuiltinID, CallExpr *TheCall);
+    bool CheckHexagonBuiltinArgument(unsigned BuiltinID, CallExpr *TheCall);
+@@ -201,20 +203,19 @@
+                                      CallExpr *TheCall);
+    bool CheckMipsBuiltinCpu(const TargetInfo &TI, unsigned BuiltinID,
+ diff --git a/clang/include/clang/module.modulemap b/clang/include/clang/module.modulemap
+-index 2b73cd5451b7..c3c4d909ea50 100644
++index 2b73cd5451b7e..efc6aa2129164 100644
+ --- a/clang/include/clang/module.modulemap
+ +++ b/clang/include/clang/module.modulemap
+-@@ -42,6 +42,8 @@ module Clang_Basic {
++@@ -42,6 +42,7 @@ module Clang_Basic {
+    textual header "Basic/BuiltinsHexagon.def"
+    textual header "Basic/BuiltinsHexagonDep.def"
+    textual header "Basic/BuiltinsHexagonMapCustomDep.def"
+-+  textual header "Basic/BuiltinsLe64.def"
+ +  textual header "Basic/BuiltinsLoongArch.def"
+    textual header "Basic/BuiltinsMips.def"
+    textual header "Basic/BuiltinsNEON.def"
+    textual header "Basic/BuiltinsNVPTX.def"
+ diff --git a/clang/lib/AST/ASTContext.cpp b/clang/lib/AST/ASTContext.cpp
+-index 5fa2d46de89b..1e0731bb0182 100644
++index e4b3827b87140..e56cd4cebbde3 100644
+ --- a/clang/lib/AST/ASTContext.cpp
+ +++ b/clang/lib/AST/ASTContext.cpp
+ @@ -901,6 +901,7 @@ CXXABI *ASTContext::createCXXABI(const TargetInfo &T) {
+@@ -225,7 +226,7 @@
+    case TargetCXXABI::GenericMIPS:
+    case TargetCXXABI::GenericItanium:
+    case TargetCXXABI::WebAssembly:
+-@@ -11654,6 +11655,7 @@ MangleContext *ASTContext::createMangleContext(const TargetInfo *T) {
++@@ -11651,6 +11652,7 @@ MangleContext *ASTContext::createMangleContext(const TargetInfo *T) {
+    case TargetCXXABI::GenericAArch64:
+    case TargetCXXABI::GenericItanium:
+    case TargetCXXABI::GenericARM:
+@@ -234,7 +235,7 @@
+    case TargetCXXABI::iOS:
+    case TargetCXXABI::WebAssembly:
+ diff --git a/clang/lib/Basic/CMakeLists.txt b/clang/lib/Basic/CMakeLists.txt
+-index 40de9433a4dd..e9a6f189ba1c 100644
++index 40de9433a4dde..e9a6f189ba1c1 100644
+ --- a/clang/lib/Basic/CMakeLists.txt
+ +++ b/clang/lib/Basic/CMakeLists.txt
+ @@ -79,6 +79,7 @@ add_clang_library(clangBasic
+@@ -246,7 +247,7 @@
+    Targets/Mips.cpp
+    Targets/NVPTX.cpp
+ diff --git a/clang/lib/Basic/Targets.cpp b/clang/lib/Basic/Targets.cpp
+-index 994a491cddf2..5408bb404b44 100644
++index 994a491cddf2e..5408bb404b44d 100644
+ --- a/clang/lib/Basic/Targets.cpp
+ +++ b/clang/lib/Basic/Targets.cpp
+ @@ -23,6 +23,7 @@
+@@ -285,15 +286,16 @@
+        return new DarwinPPC32TargetInfo(Triple, Opts);
+ diff --git a/clang/lib/Basic/Targets/LoongArch.cpp b/clang/lib/Basic/Targets/LoongArch.cpp
+ new file mode 100644
+-index 000000000000..28a82e065044
++index 0000000000000..bb840ea03bc98
+ --- /dev/null
+ +++ b/clang/lib/Basic/Targets/LoongArch.cpp
+-@@ -0,0 +1,142 @@
++@@ -0,0 +1,143 @@
+ +//===--- LoongArch.cpp - Implement LoongArch target feature support -----------------===//
+ +//
+-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+-+// See https://llvm.org/LICENSE.txt for license information.
+-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+++//                     The LLVM Compiler Infrastructure
+++//
+++// This file is distributed under the University of Illinois Open Source
+++// License. See LICENSE.TXT for details.
+ +//
+ +//===----------------------------------------------------------------------===//
+ +//
+@@ -433,15 +435,16 @@
+ +}
+ diff --git a/clang/lib/Basic/Targets/LoongArch.h b/clang/lib/Basic/Targets/LoongArch.h
+ new file mode 100644
+-index 000000000000..b959840b1c1c
++index 0000000000000..4c1c93b26c4e6
+ --- /dev/null
+ +++ b/clang/lib/Basic/Targets/LoongArch.h
+-@@ -0,0 +1,331 @@
++@@ -0,0 +1,332 @@
+ +//===--- LoongArch.h - Declare LoongArch target feature support -----------*- C++ -*-===//
+ +//
+-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+-+// See https://llvm.org/LICENSE.txt for license information.
+-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+++//                     The LLVM Compiler Infrastructure
+++//
+++// This file is distributed under the University of Illinois Open Source
+++// License. See LICENSE.TXT for details.
+ +//
+ +//===----------------------------------------------------------------------===//
+ +//
+@@ -769,7 +772,7 @@
+ +
+ +#endif // LLVM_CLANG_LIB_BASIC_TARGETS_LOONGARCH_H
+ diff --git a/clang/lib/CodeGen/CodeGenModule.cpp b/clang/lib/CodeGen/CodeGenModule.cpp
+-index 29806b65e984..b8a56b858b0d 100644
++index 2777fc22600db..6c95dd612bd7d 100644
+ --- a/clang/lib/CodeGen/CodeGenModule.cpp
+ +++ b/clang/lib/CodeGen/CodeGenModule.cpp
+ @@ -82,6 +82,7 @@ static CGCXXABI *createCXXABI(CodeGenModule &CGM) {
+@@ -781,7 +784,7 @@
+    case TargetCXXABI::GenericItanium:
+    case TargetCXXABI::WebAssembly:
+ diff --git a/clang/lib/CodeGen/ItaniumCXXABI.cpp b/clang/lib/CodeGen/ItaniumCXXABI.cpp
+-index 2979d92c8417..5ef50a16e917 100644
++index 2979d92c84172..5ef50a16e917f 100644
+ --- a/clang/lib/CodeGen/ItaniumCXXABI.cpp
+ +++ b/clang/lib/CodeGen/ItaniumCXXABI.cpp
+ @@ -533,6 +533,9 @@ CodeGen::CGCXXABI *CodeGen::CreateItaniumCXXABI(CodeGenModule &CGM) {
+@@ -795,7 +798,7 @@
+      return new ItaniumCXXABI(CGM, /*UseARMMethodPtrABI=*/true);
+  
+ diff --git a/clang/lib/CodeGen/TargetInfo.cpp b/clang/lib/CodeGen/TargetInfo.cpp
+-index 9af3004ebcc5..69be87a0e18b 100644
++index 9af3004ebcc5b..e56e64d47481e 100644
+ --- a/clang/lib/CodeGen/TargetInfo.cpp
+ +++ b/clang/lib/CodeGen/TargetInfo.cpp
+ @@ -7804,6 +7804,543 @@ void MSP430TargetCodeGenInfo::setTargetAttributes(
+@@ -1306,11 +1309,11 @@
+ +    return Addr;
+ +  }
+ +
+-+  auto SizeAndAlign =
+++  std::pair<CharUnits, CharUnits> SizeAndAlign =
+ +      getContext().getTypeInfoInChars(Ty);
+ +
+ +  // Arguments bigger than 2*Xlen bytes are passed indirectly.
+-+  bool IsIndirect = SizeAndAlign.Width > 2 * SlotSize;
+++  bool IsIndirect = SizeAndAlign.first > 2 * SlotSize;
+ +
+ +  return emitVoidPtrVAArg(CGF, VAListAddr, Ty, IsIndirect, SizeAndAlign,
+ +                          SlotSize, /*AllowHigherAlign=*/true);
+@@ -1353,7 +1356,7 @@
+      return SetCGInfo(new MSP430TargetCodeGenInfo(Types));
+  
+ diff --git a/clang/lib/Driver/CMakeLists.txt b/clang/lib/Driver/CMakeLists.txt
+-index 78e8fd185284..6292978a288e 100644
++index 78e8fd1852841..6292978a288e8 100644
+ --- a/clang/lib/Driver/CMakeLists.txt
+ +++ b/clang/lib/Driver/CMakeLists.txt
+ @@ -27,6 +27,7 @@ add_clang_library(clangDriver
+@@ -1365,7 +1368,7 @@
+    ToolChains/Arch/PPC.cpp
+    ToolChains/Arch/RISCV.cpp
+ diff --git a/clang/lib/Driver/Driver.cpp b/clang/lib/Driver/Driver.cpp
+-index 3bfddeefc7b2..c37a17f07c84 100644
++index 3bfddeefc7b2b..c37a17f07c84b 100644
+ --- a/clang/lib/Driver/Driver.cpp
+ +++ b/clang/lib/Driver/Driver.cpp
+ @@ -617,6 +617,21 @@ static llvm::Triple computeTargetTriple(const Driver &D,
+@@ -1392,15 +1395,16 @@
+    A = Args.getLastArg(options::OPT_mabi_EQ);
+ diff --git a/clang/lib/Driver/ToolChains/Arch/LoongArch.cpp b/clang/lib/Driver/ToolChains/Arch/LoongArch.cpp
+ new file mode 100644
+-index 000000000000..e0823f2ce76a
++index 0000000000000..cbe7782696723
+ --- /dev/null
+ +++ b/clang/lib/Driver/ToolChains/Arch/LoongArch.cpp
+-@@ -0,0 +1,169 @@
++@@ -0,0 +1,170 @@
+ +//===--- LoongArch.cpp - Tools Implementations -----------------------*- C++ -*-===//
+ +//
+-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+-+// See https://llvm.org/LICENSE.txt for license information.
+-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+++//                     The LLVM Compiler Infrastructure
+++//
+++// This file is distributed under the University of Illinois Open Source
+++// License. See LICENSE.TXT for details.
+ +//
+ +//===----------------------------------------------------------------------===//
+ +
+@@ -1567,15 +1571,16 @@
+ +}
+ diff --git a/clang/lib/Driver/ToolChains/Arch/LoongArch.h b/clang/lib/Driver/ToolChains/Arch/LoongArch.h
+ new file mode 100644
+-index 000000000000..5c581ff69c98
++index 0000000000000..66003a287013b
+ --- /dev/null
+ +++ b/clang/lib/Driver/ToolChains/Arch/LoongArch.h
+-@@ -0,0 +1,41 @@
++@@ -0,0 +1,42 @@
+ +//===--- LoongArch.h - LoongArch-specific Tool Helpers ----------------------*- C++ -*-===//
+ +//
+-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+-+// See https://llvm.org/LICENSE.txt for license information.
+-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+++//                     The LLVM Compiler Infrastructure
+++//
+++// This file is distributed under the University of Illinois Open Source
+++// License. See LICENSE.TXT for details.
+ +//
+ +//===----------------------------------------------------------------------===//
+ +
+@@ -1613,7 +1618,7 @@
+ +
+ +#endif // LLVM_CLANG_LIB_DRIVER_TOOLCHAINS_ARCH_LOONGARCH_H
+ diff --git a/clang/lib/Driver/ToolChains/Clang.cpp b/clang/lib/Driver/ToolChains/Clang.cpp
+-index f2f18e901ab0..b7cefe0df9c6 100644
++index f2f18e901ab01..b7cefe0df9c6a 100644
+ --- a/clang/lib/Driver/ToolChains/Clang.cpp
+ +++ b/clang/lib/Driver/ToolChains/Clang.cpp
+ @@ -11,6 +11,7 @@
+@@ -1730,10 +1735,10 @@
+    case llvm::Triple::mipsel:
+    case llvm::Triple::mips64:
+ diff --git a/clang/lib/Driver/ToolChains/Clang.h b/clang/lib/Driver/ToolChains/Clang.h
+-index 79407c9884d5..ba59f7515ae1 100644
++index 79407c9884d51..ba59f7515ae1e 100644
+ --- a/clang/lib/Driver/ToolChains/Clang.h
+ +++ b/clang/lib/Driver/ToolChains/Clang.h
+-@@ -57,6 +57,8 @@ private:
++@@ -57,6 +57,8 @@ class LLVM_LIBRARY_VISIBILITY Clang : public Tool {
+                          bool KernelOrKext) const;
+    void AddARM64TargetArgs(const llvm::opt::ArgList &Args,
+                            llvm::opt::ArgStringList &CmdArgs) const;
+@@ -1752,7 +1757,7 @@
+                           llvm::opt::ArgStringList &CmdArgs) const;
+    void AddX86TargetArgs(const llvm::opt::ArgList &Args,
+ diff --git a/clang/lib/Driver/ToolChains/CommonArgs.cpp b/clang/lib/Driver/ToolChains/CommonArgs.cpp
+-index dfcef2304040..bc97366bf363 100644
++index 8f9244cae8dbc..3a5738e3a60ec 100644
+ --- a/clang/lib/Driver/ToolChains/CommonArgs.cpp
+ +++ b/clang/lib/Driver/ToolChains/CommonArgs.cpp
+ @@ -10,6 +10,7 @@
+@@ -1763,7 +1768,7 @@
+  #include "Arch/Mips.h"
+  #include "Arch/PPC.h"
+  #include "Arch/SystemZ.h"
+-@@ -386,6 +387,15 @@ std::string tools::getCPUName(const Driver &D, const ArgList &Args,
++@@ -386,6 +387,14 @@ std::string tools::getCPUName(const Driver &D, const ArgList &Args,
+    case llvm::Triple::m68k:
+      return m68k::getM68kTargetCPU(Args);
+  
+@@ -1775,11 +1780,10 @@
+ +    return std::string(CPUName);
+ +  }
+ +
+-+
+    case llvm::Triple::mips:
+    case llvm::Triple::mipsel:
+    case llvm::Triple::mips64:
+-@@ -1309,6 +1319,18 @@ tools::ParsePICArgs(const ToolChain &ToolChain, const ArgList &Args) {
++@@ -1321,6 +1330,18 @@ tools::ParsePICArgs(const ToolChain &ToolChain, const ArgList &Args) {
+    if ((ROPI || RWPI) && (PIC || PIE))
+      ToolChain.getDriver().Diag(diag::err_drv_ropi_rwpi_incompatible_with_pic);
+  
+@@ -1799,7 +1803,7 @@
+      StringRef CPUName;
+      StringRef ABIName;
+ diff --git a/clang/lib/Driver/ToolChains/Gnu.cpp b/clang/lib/Driver/ToolChains/Gnu.cpp
+-index 7a9570a686f4..9966cd050db0 100644
++index 7a9570a686f4b..1e7383c109be2 100644
+ --- a/clang/lib/Driver/ToolChains/Gnu.cpp
+ +++ b/clang/lib/Driver/ToolChains/Gnu.cpp
+ @@ -8,6 +8,7 @@
+@@ -1863,31 +1867,30 @@
+    case llvm::Triple::mips:
+    case llvm::Triple::mipsel:
+    case llvm::Triple::mips64:
+-@@ -2114,7 +2154,12 @@ void Generic_GCC::GCCInstallationDetector::AddDefaultGCCPrefixes(
+-   static const char *const M68kTriples[] = {
+-       "m68k-linux-gnu", "m68k-unknown-linux-gnu", "m68k-suse-linux"};
++@@ -2122,6 +2162,11 @@ void Generic_GCC::GCCInstallationDetector::AddDefaultGCCPrefixes(
++   static const char *const MIPSELTriples[] = {
++       "mipsel-linux-gnu", "mips-img-linux-gnu", "mipsisa32r6el-linux-gnu"};
+  
+--  static const char *const MIPSLibDirs[] = {"/libo32", "/lib"};
+ +  static const char *const LoongArch64LibDirs[] = {"/lib64", "/lib"};
+ +  static const char *const LoongArch64Triples[] = {
+ +      "loongarch64-linux-gnu",         "loongarch64-linux-gnuabi64",
+ +      "loongarch64-unknown-linux-gnu", "loongarch64-unknown-linux-gnuabi64"};
+ +
+-+  static const char *const MIPSLibDirs[] = {"/lib"};
+-   static const char *const MIPSTriples[] = {
+-       "mips-linux-gnu", "mips-mti-linux", "mips-mti-linux-gnu",
+-       "mips-img-linux-gnu", "mipsisa32r6-linux-gnu"};
+-@@ -2356,6 +2401,9 @@ void Generic_GCC::GCCInstallationDetector::AddDefaultGCCPrefixes(
+-   case llvm::Triple::m68k:
++   static const char *const MIPS64LibDirs[] = {"/lib64", "/lib"};
++   static const char *const MIPS64Triples[] = {
++       "mips64-linux-gnu",      "mips-mti-linux-gnu",
++@@ -2357,6 +2402,10 @@ void Generic_GCC::GCCInstallationDetector::AddDefaultGCCPrefixes(
+      LibDirs.append(begin(M68kLibDirs), end(M68kLibDirs));
+      TripleAliases.append(begin(M68kTriples), end(M68kTriples));
++     break;
+ +  case llvm::Triple::loongarch64:
+ +    LibDirs.append(begin(LoongArch64LibDirs), end(LoongArch64LibDirs));
+ +    TripleAliases.append(begin(LoongArch64Triples), end(LoongArch64Triples));
+-     break;
+++    break;
+    case llvm::Triple::mips:
+      LibDirs.append(begin(MIPSLibDirs), end(MIPSLibDirs));
+-@@ -2708,6 +2756,7 @@ bool Generic_GCC::isPICDefault() const {
++     TripleAliases.append(begin(MIPSTriples), end(MIPSTriples));
++@@ -2708,6 +2757,7 @@ bool Generic_GCC::isPICDefault() const {
+    switch (getArch()) {
+    case llvm::Triple::x86_64:
+      return getTriple().isOSWindows();
+@@ -1895,7 +1898,7 @@
+    case llvm::Triple::mips64:
+    case llvm::Triple::mips64el:
+      return true;
+-@@ -2750,6 +2799,8 @@ bool Generic_GCC::IsIntegratedAssemblerDefault() const {
++@@ -2750,6 +2800,8 @@ bool Generic_GCC::IsIntegratedAssemblerDefault() const {
+    case llvm::Triple::mips64el:
+    case llvm::Triple::msp430:
+    case llvm::Triple::m68k:
+@@ -1905,7 +1908,7 @@
+    case llvm::Triple::sparc:
+    case llvm::Triple::sparcel:
+ diff --git a/clang/lib/Driver/ToolChains/Linux.cpp b/clang/lib/Driver/ToolChains/Linux.cpp
+-index f85c04df4f6c..d38ffff13cab 100644
++index 83cb41159de7e..fa373ce992aa8 100644
+ --- a/clang/lib/Driver/ToolChains/Linux.cpp
+ +++ b/clang/lib/Driver/ToolChains/Linux.cpp
+ @@ -8,6 +8,7 @@
+@@ -1916,24 +1919,44 @@
+  #include "Arch/Mips.h"
+  #include "Arch/PPC.h"
+  #include "Arch/RISCV.h"
+-@@ -84,7 +85,12 @@ std::string Linux::getMultiarchTriple(const Driver &D,
+-     return "aarch64-linux-gnu";
++@@ -85,6 +86,19 @@ std::string Linux::getMultiarchTriple(const Driver &D,
+    case llvm::Triple::aarch64_be:
+      return "aarch64_be-linux-gnu";
+--
++ 
+ +  case llvm::Triple::loongarch32: {
+-+    return "loongarch32-linux-gnu";
+++    std::string MT = "loongarch32-linux-gnu";
+++    if (D.getVFS().exists(SysRoot + "/lib/" + MT))
+++      return MT;
+++    break;
+ +  }
+ +  case llvm::Triple::loongarch64: {
+-+    return "loongarch64-linux-gnu";
+++    std::string MT = "loongarch64-linux-gnu";
+++    if (D.getVFS().exists(SysRoot + "/lib/" + MT))
+++      return MT;
+++    break;
+ +  }
+++
+    case llvm::Triple::m68k:
+      return "m68k-linux-gnu";
+  
+-@@ -462,6 +468,14 @@ std::string Linux::getDynamicLinker(const ArgList &Args) const {
++@@ -114,6 +128,7 @@ std::string Linux::getMultiarchTriple(const Driver &D,
++       return "mips64el-linux-gnu";
++     break;
++   }
+++
++   case llvm::Triple::ppc:
++     if (D.getVFS().exists(SysRoot + "/lib/powerpc-linux-gnuspe"))
++       return "powerpc-linux-gnuspe";
++@@ -452,10 +467,21 @@ std::string Linux::getDynamicLinker(const ArgList &Args) const {
++     Loader = HF ? "ld-linux-armhf.so.3" : "ld-linux.so.3";
++     break;
++   }
+++
++   case llvm::Triple::m68k:
+      LibDir = "lib";
+      Loader = "ld.so.1";
+      break;
+++
+ +  case llvm::Triple::loongarch32:
+ +  case llvm::Triple::loongarch64: {
+ +    StringRef CPUName, ABIName;
+@@ -1942,11 +1965,12 @@
+ +    Loader = ("ld-linux-loongarch-" + ABIName + ".so.1").str();
+ +    break;
+ +  }
+++
+    case llvm::Triple::mips:
+    case llvm::Triple::mipsel:
+    case llvm::Triple::mips64:
+ diff --git a/clang/lib/Driver/XRayArgs.cpp b/clang/lib/Driver/XRayArgs.cpp
+-index 63b575178bd1..4e3ae3f250a6 100644
++index 63b575178bd12..4e3ae3f250a66 100644
+ --- a/clang/lib/Driver/XRayArgs.cpp
+ +++ b/clang/lib/Driver/XRayArgs.cpp
+ @@ -42,6 +42,8 @@ XRayArgs::XRayArgs(const ToolChain &TC, const ArgList &Args) {
+@@ -1959,7 +1983,7 @@
+      case llvm::Triple::mipsel:
+      case llvm::Triple::mips64:
+ diff --git a/clang/lib/Headers/CMakeLists.txt b/clang/lib/Headers/CMakeLists.txt
+-index 078988980c52..c3a06ef19c1f 100644
++index 078988980c526..c3a06ef19c1fb 100644
+ --- a/clang/lib/Headers/CMakeLists.txt
+ +++ b/clang/lib/Headers/CMakeLists.txt
+ @@ -85,6 +85,7 @@ set(files
+@@ -1972,15 +1996,16 @@
+    lzcntintrin.h
+ diff --git a/clang/lib/Headers/larchintrin.h b/clang/lib/Headers/larchintrin.h
+ new file mode 100644
+-index 000000000000..7e99f19a3828
++index 0000000000000..96d393ba2b582
+ --- /dev/null
+ +++ b/clang/lib/Headers/larchintrin.h
+-@@ -0,0 +1,319 @@
++@@ -0,0 +1,320 @@
+ +//===----------- larchintrin.h - LoongArch BASE intrinsics ------------------===//
+ +//
+-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+-+// See https://llvm.org/LICENSE.txt for license information.
+-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+++//                     The LLVM Compiler Infrastructure
+++//
+++// This file is distributed under the University of Illinois Open Source
+++// License. See LICENSE.TXT for details.
+ +//
+ +//===----------------------------------------------------------------------===//
+ +//
+@@ -2296,7 +2321,7 @@
+ +#endif
+ +#endif /* __LOONGARCH_BASE_H */
+ diff --git a/clang/lib/Sema/SemaChecking.cpp b/clang/lib/Sema/SemaChecking.cpp
+-index 69dcc3aaaaf3..250737eaa558 100644
++index 69dcc3aaaaf37..250737eaa558e 100644
+ --- a/clang/lib/Sema/SemaChecking.cpp
+ +++ b/clang/lib/Sema/SemaChecking.cpp
+ @@ -1658,6 +1658,9 @@ bool Sema::CheckTSBuiltinFunctionCall(const TargetInfo &TI, unsigned BuiltinID,
+@@ -2357,7 +2382,7 @@
+    if (BuiltinID == SystemZ::BI__builtin_tabort) {
+ diff --git a/clang/test/CodeGen/builtins-loongarch-base.c b/clang/test/CodeGen/builtins-loongarch-base.c
+ new file mode 100644
+-index 000000000000..d72213590a50
++index 0000000000000..d72213590a508
+ --- /dev/null
+ +++ b/clang/test/CodeGen/builtins-loongarch-base.c
+ @@ -0,0 +1,417 @@
+@@ -2780,7 +2805,7 @@
+ +}
+ diff --git a/clang/test/CodeGen/loongarch-inline-asm-modifiers.c b/clang/test/CodeGen/loongarch-inline-asm-modifiers.c
+ new file mode 100644
+-index 000000000000..7cf96cdc1a46
++index 0000000000000..7cf96cdc1a460
+ --- /dev/null
+ +++ b/clang/test/CodeGen/loongarch-inline-asm-modifiers.c
+ @@ -0,0 +1,40 @@
+@@ -2826,7 +2851,7 @@
+ +}
+ diff --git a/clang/test/CodeGen/loongarch-inline-asm.c b/clang/test/CodeGen/loongarch-inline-asm.c
+ new file mode 100644
+-index 000000000000..a75f00d20ef3
++index 0000000000000..a75f00d20ef35
+ --- /dev/null
+ +++ b/clang/test/CodeGen/loongarch-inline-asm.c
+ @@ -0,0 +1,31 @@
+@@ -2863,7 +2888,7 @@
+ +}
+ diff --git a/clang/test/CodeGen/struct-128.cpp b/clang/test/CodeGen/struct-128.cpp
+ new file mode 100644
+-index 000000000000..573a16eb1824
++index 0000000000000..573a16eb18241
+ --- /dev/null
+ +++ b/clang/test/CodeGen/struct-128.cpp
+ @@ -0,0 +1,23 @@
+@@ -2892,7 +2917,7 @@
+ +}
+ diff --git a/clang/test/CodeGen/struct-packed-128.cpp b/clang/test/CodeGen/struct-packed-128.cpp
+ new file mode 100644
+-index 000000000000..d31ccb08d985
++index 0000000000000..d31ccb08d985a
+ --- /dev/null
+ +++ b/clang/test/CodeGen/struct-packed-128.cpp
+ @@ -0,0 +1,23 @@
+@@ -2921,7 +2946,7 @@
+ +}
+ diff --git a/clang/test/CodeGen/struct-private-128.cpp b/clang/test/CodeGen/struct-private-128.cpp
+ new file mode 100644
+-index 000000000000..336fd817a830
++index 0000000000000..336fd817a830c
+ --- /dev/null
+ +++ b/clang/test/CodeGen/struct-private-128.cpp
+ @@ -0,0 +1,24 @@
+@@ -2951,7 +2976,7 @@
+ +}
+ diff --git a/clang/test/CodeGen/struct-static.cpp b/clang/test/CodeGen/struct-static.cpp
+ new file mode 100644
+-index 000000000000..4253a80d0815
++index 0000000000000..4253a80d08156
+ --- /dev/null
+ +++ b/clang/test/CodeGen/struct-static.cpp
+ @@ -0,0 +1,25 @@
+@@ -2982,7 +3007,7 @@
+ +
+ diff --git a/clang/test/Driver/loongarch-abi-fpu.c b/clang/test/Driver/loongarch-abi-fpu.c
+ new file mode 100644
+-index 000000000000..180d440c9981
++index 0000000000000..180d440c9981c
+ --- /dev/null
+ +++ b/clang/test/Driver/loongarch-abi-fpu.c
+ @@ -0,0 +1,26 @@
+@@ -3014,7 +3039,7 @@
+ +// ERRLP64F-WITH-FPUNONE: error: option 'lp64f' cannot be specified with '-mfpu=none'
+ diff --git a/clang/test/Driver/loongarch-double-single-soft.c b/clang/test/Driver/loongarch-double-single-soft.c
+ new file mode 100644
+-index 000000000000..4b25f876575d
++index 0000000000000..4b25f876575d5
+ --- /dev/null
+ +++ b/clang/test/Driver/loongarch-double-single-soft.c
+ @@ -0,0 +1,12 @@
+@@ -3032,7 +3057,7 @@
+ +// CHECK-SOFT: "-target-feature" "-f" "-target-feature" "-d" "-target-abi" "lp64s"
+ diff --git a/clang/test/Driver/loongarch-mabi.c b/clang/test/Driver/loongarch-mabi.c
+ new file mode 100644
+-index 000000000000..88a90408debd
++index 0000000000000..88a90408debd3
+ --- /dev/null
+ +++ b/clang/test/Driver/loongarch-mabi.c
+ @@ -0,0 +1,22 @@
+@@ -3060,7 +3085,7 @@
+ +// CHECK-X: error: unknown target ABI 'x'
+ diff --git a/clang/test/Driver/loongarch-mfpu.c b/clang/test/Driver/loongarch-mfpu.c
+ new file mode 100644
+-index 000000000000..0cf05fd3eccf
++index 0000000000000..0cf05fd3eccf0
+ --- /dev/null
+ +++ b/clang/test/Driver/loongarch-mfpu.c
+ @@ -0,0 +1,21 @@
+@@ -3086,10 +3111,10 @@
+ +// INVALID-FPU: error: invalid loongarch FPU value 'x'. Please specify FPU = 64,32 or none
+ +// ERRLP64D-ONLY-FPU64: error: option 'lp64d' cannot be specified without '-mfpu=64'
+ diff --git a/clang/test/Preprocessor/init.c b/clang/test/Preprocessor/init.c
+-index dd645bf6003c..0ff10d2bc0ca 100644
++index 46cfcd6dbb0aa..c83c82d7ef1b8 100644
+ --- a/clang/test/Preprocessor/init.c
+ +++ b/clang/test/Preprocessor/init.c
+-@@ -2606,3 +2606,33 @@
++@@ -2603,3 +2603,33 @@
+  // RISCV64-LINUX: #define __unix__ 1
+  // RISCV64-LINUX: #define linux 1
+  // RISCV64-LINUX: #define unix 1

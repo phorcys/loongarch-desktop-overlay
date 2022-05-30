@@ -69,7 +69,7 @@ LLVM_USE_TARGETS=llvm
 llvm.org_set_globals
 
 PATCHES=(
-      "${FILESDIR}"/clang-14.0.1-add-loongarch-support.patch
+      "${FILESDIR}"/clang-14.0.3-add-loongarch-support.patch
 )
 # Multilib notes:
 # 1. ABI_* flags control ABIs libclang* is built for only.

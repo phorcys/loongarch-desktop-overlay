@@ -1,4 +1,4 @@
-# Copyright 1999-2021 Gentoo Authors
+# Copyright 1999-2022 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
 
 # @ECLASS: cargo.eclass
@@ -6,7 +6,7 @@
 # rust@gentoo.org
 # @AUTHOR:
 # Doug Goldstein <cardoe@gentoo.org>
-# Georgy Yakovlev <gyakovlev@genotoo.org>
+# Georgy Yakovlev <gyakovlev@gentoo.org>
 # @SUPPORTED_EAPIS: 7 8
 # @BLURB: common functions and variables for cargo builds
 
@@ -57,7 +57,7 @@ IUSE="${IUSE} debug"
 ECARGO_HOME="${WORKDIR}/cargo_home"
 ECARGO_VENDOR="${ECARGO_HOME}/gentoo"
 
-# @ECLASS-VARIABLE: CRATES
+# @ECLASS_VARIABLE: CRATES
 # @DEFAULT_UNSET
 # @PRE_INHERIT
 # @DESCRIPTION:
@@ -75,7 +75,7 @@ ECARGO_VENDOR="${ECARGO_HOME}/gentoo"
 # SRC_URI="$(cargo_crate_uris)"
 # @CODE
 
-# @ECLASS-VARIABLE: CARGO_OPTIONAL
+# @ECLASS_VARIABLE: CARGO_OPTIONAL
 # @DEFAULT_UNSET
 # @PRE_INHERIT
 # @DESCRIPTION:
@@ -105,7 +105,7 @@ ECARGO_VENDOR="${ECARGO_HOME}/gentoo"
 # }
 # @CODE
 
-# @ECLASS-VARIABLE: ECARGO_REGISTRY_DIR
+# @ECLASS_VARIABLE: ECARGO_REGISTRY_DIR
 # @USER_VARIABLE
 # @DEFAULT_UNSET
 # @DESCRIPTION:
@@ -116,7 +116,7 @@ ECARGO_VENDOR="${ECARGO_HOME}/gentoo"
 #
 # Defaults to "${DISTDIR}/cargo-registry" it not set.
 
-# @ECLASS-VARIABLE: ECARGO_OFFLINE
+# @ECLASS_VARIABLE: ECARGO_OFFLINE
 # @USER_VARIABLE
 # @DEFAULT_UNSET
 # @DESCRIPTION:
@@ -124,7 +124,7 @@ ECARGO_VENDOR="${ECARGO_HOME}/gentoo"
 # cargo_live_src_unpack.
 # Inherits value of EVCS_OFFLINE if not set explicitly.
 
-# @ECLASS-VARIABLE: EVCS_UMASK
+# @ECLASS_VARIABLE: EVCS_UMASK
 # @USER_VARIABLE
 # @DEFAULT_UNSET
 # @DESCRIPTION:
@@ -194,7 +194,6 @@ cargo_gen_config() {
 
 	[term]
 	verbose = true
-
 	$([[ "${NOCOLOR}" = true || "${NOCOLOR}" = yes ]] && echo "color = 'never'")
 	_EOF_
 
@@ -357,36 +356,37 @@ cargo_live_src_unpack() {
 # as there is no way to disable single feature, except disabling all.
 # It can be passed directly to cargo_src_configure().
 cargo_src_configure() {
+    # Override unported libc version for LoongArch
+	elog "Testing if loong arch ..."
+    if use loong; then
+        rust_vers="$(rustc -V| awk '{print $2}')"
+        libcver="0.2.99"
+        if rust_vers="1.57.0"; then
+            libcver="0.2.102";
+        fi
+        if rust_vers="1.58.1"; then
+            libcver="0.2.107";
+        fi
+        if rust_vers="1.59.0"; then
+            libcver="0.2.112";
+        fi
+        if rust_vers="1.60.0"; then
+            libcver="0.2.117";
+        fi
+
+        cat >> "Cargo.toml" <<- _EOF_ || die "Failed to append Cargo.toml"
+
+        [dependencies.libc]
+        version="${libcver}"
+
+        [patch.crates-io]
+        libc = { path = '/usr/lib/rust/lib/rustlib/src/loongarch/libc' }
+_EOF_
+        cargo update
+        elog "Use Local patched libc-${libcver} source code, because they are not upstream yet..."
+    fi
+
 	debug-print-function ${FUNCNAME} "$@"
-
-	# Override unported libc version for LoongArch
-	if use loong; then
-		rust_vers="$(rustc -V| awk '{print $2}')"
-		libcver="0.2.99"
-		if rust_vers="1.57.0"; then 
-			libcver="0.2.102";
-		fi
-		if rust_vers="1.58.1"; then
-			libcver="0.2.107";
-		fi
-		if rust_vers="1.59.0"; then
-			libcver="0.2.112";
-		fi
-		if rust_vers="1.60.0"; then
-			libcver="0.2.117";
-		fi
-
-		cat >> "Cargo.toml" <<- _EOF_ || die "Failed to append Cargo.toml"
-
-		[dependencies.libc]
-		version="${libcver}"
-
-		[patch.crates-io]
-		libc = { path = '/usr/lib/rust/lib/rustlib/src/loongarch/libc' }
-		_EOF_
-		cargo update
-		elog "Use Local patched libc-${libcver} source code, because they are not upstream yet..."
-	fi
 
 	[[ -z ${myfeatures} ]] && declare -a myfeatures=()
 	local myfeaturestype=$(declare -p myfeatures 2>&-)

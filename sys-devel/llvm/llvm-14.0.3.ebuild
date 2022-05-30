@@ -1,7 +1,7 @@
 # Copyright 1999-2022 Gentoo Authors
 # Distributed under the terms of the GNU General Public License v2
 
-EAPI=7
+EAPI=8
 
 PYTHON_COMPAT=( python3_{8..10} )
 inherit cmake llvm.org multilib-minimal pax-utils python-any-r1 \
@@ -9,14 +9,6 @@ inherit cmake llvm.org multilib-minimal pax-utils python-any-r1 \
 
 DESCRIPTION="Low Level Virtual Machine"
 HOMEPAGE="https://llvm.org/"
-
-# Those are in lib/Targets, without explicit CMakeLists.txt mention
-ALL_LLVM_EXPERIMENTAL_TARGETS=( ARC CSKY VE )
-# Keep in sync with CMakeLists.txt
-ALL_LLVM_TARGETS=( AArch64 AMDGPU ARM AVR BPF Hexagon Lanai Mips MSP430
-	NVPTX PowerPC RISCV Sparc SystemZ WebAssembly X86 XCore
-	"${ALL_LLVM_EXPERIMENTAL_TARGETS[@]}" )
-ALL_LLVM_TARGETS=( "${ALL_LLVM_TARGETS[@]/#/llvm_targets_}" )
 
 # Additional licenses:
 # 1. OpenBSD regex: Henry Spencer's license ('rc' in Gentoo) + BSD.
@@ -26,24 +18,27 @@ ALL_LLVM_TARGETS=( "${ALL_LLVM_TARGETS[@]/#/llvm_targets_}" )
 
 LICENSE="Apache-2.0-with-LLVM-exceptions UoI-NCSA BSD public-domain rc"
 SLOT="$(ver_cut 1)"
-KEYWORDS="amd64 arm arm64 ~ppc ppc64 ~riscv ~sparc x86 ~amd64-linux ~ppc-macos ~x64-macos"
-IUSE="debug doc exegesis +gold libedit +libffi ncurses test xar xml z3 ${ALL_LLVM_TARGETS[*]}"
-REQUIRED_USE="|| ( ${ALL_LLVM_TARGETS[*]} )"
+KEYWORDS="~amd64 ~arm ~arm64 ~loong ~ppc ~ppc64 ~riscv ~sparc ~x86 ~amd64-linux ~ppc-macos ~x64-macos"
+IUSE="+binutils-plugin debug doc exegesis libedit +libffi ncurses test xar xml z3"
 RESTRICT="!test? ( test )"
 
 RDEPEND="
 	sys-libs/zlib:0=[${MULTILIB_USEDEP}]
+	binutils-plugin? ( >=sys-devel/binutils-2.31.1-r4:*[plugins] )
 	exegesis? ( dev-libs/libpfm:= )
-	gold? ( >=sys-devel/binutils-2.31.1-r4:*[plugins] )
 	libedit? ( dev-libs/libedit:0=[${MULTILIB_USEDEP}] )
 	libffi? ( >=dev-libs/libffi-3.0.13-r1:0=[${MULTILIB_USEDEP}] )
 	ncurses? ( >=sys-libs/ncurses-5.9-r3:0=[${MULTILIB_USEDEP}] )
 	xar? ( app-arch/xar )
 	xml? ( dev-libs/libxml2:2=[${MULTILIB_USEDEP}] )
-	z3? ( >=sci-mathematics/z3-4.7.1:0=[${MULTILIB_USEDEP}] )"
-DEPEND="${RDEPEND}
-	gold? ( sys-libs/binutils-libs )"
+	z3? ( >=sci-mathematics/z3-4.7.1:0=[${MULTILIB_USEDEP}] )
+"
+DEPEND="
+	${RDEPEND}
+	binutils-plugin? ( sys-libs/binutils-libs )
+"
 BDEPEND="
+	${PYTHON_DEPS}
 	dev-lang/perl
 	>=dev-util/cmake-3.16
 	sys-devel/gnuconfig
@@ -56,17 +51,25 @@ BDEPEND="
 		dev-python/sphinx[${PYTHON_USEDEP}]
 	') )
 	libffi? ( virtual/pkgconfig )
-	${PYTHON_DEPS}"
+"
 # There are no file collisions between these versions but having :0
 # installed means llvm-config there will take precedence.
-RDEPEND="${RDEPEND}
-	!sys-devel/llvm:0"
-PDEPEND="sys-devel/llvm-common
-	gold? ( >=sys-devel/llvmgold-${SLOT} )"
+RDEPEND="
+	${RDEPEND}
+	!sys-devel/llvm:0
+"
+PDEPEND="
+	sys-devel/llvm-common
+	binutils-plugin? ( >=sys-devel/llvmgold-${SLOT} )
+"
+PATCHES=(
+	"${FILESDIR}"/llvm-14.0.3-add-loongarch-support.patch
+)
 
-LLVM_COMPONENTS=( llvm )
+LLVM_COMPONENTS=( llvm cmake third-party )
 LLVM_MANPAGES=pregenerated
-LLVM_PATCHSET=12.0.1
+LLVM_PATCHSET=${PV}
+LLVM_USE_TARGETS=provide
 llvm.org_set_globals
 
 python_check_deps() {
@@ -91,8 +94,6 @@ check_live_ebuild() {
 	for i in "${all_targets[@]}"; do
 		has "${i}" "${prod_targets[@]}" || exp_targets+=( "${i}" )
 	done
-	# reorder
-	all_targets=( "${prod_targets[@]}" "${exp_targets[@]}" )
 
 	if [[ ${exp_targets[*]} != ${ALL_LLVM_EXPERIMENTAL_TARGETS[*]} ]]; then
 		eqawarn "ALL_LLVM_EXPERIMENTAL_TARGETS is outdated!"
@@ -101,10 +102,10 @@ check_live_ebuild() {
 		eqawarn
 	fi
 
-	if [[ ${all_targets[*]} != ${ALL_LLVM_TARGETS[*]#llvm_targets_} ]]; then
-		eqawarn "ALL_LLVM_TARGETS is outdated!"
-		eqawarn "    Have: ${ALL_LLVM_TARGETS[*]#llvm_targets_}"
-		eqawarn "Expected: ${all_targets[*]}"
+	if [[ ${prod_targets[*]} != ${ALL_LLVM_PRODUCTION_TARGETS[*]} ]]; then
+		eqawarn "ALL_LLVM_PRODUCTION_TARGETS is outdated!"
+		eqawarn "    Have: ${ALL_LLVM_PRODUCTION_TARGETS[*]}"
+		eqawarn "Expected: ${prod_targets[*]}"
 	fi
 }
 
@@ -245,12 +246,12 @@ get_distribution_components() {
 			llvm-cxxdump
 			llvm-cxxfilt
 			llvm-cxxmap
+			llvm-debuginfod-find
 			llvm-diff
 			llvm-dis
 			llvm-dlltool
 			llvm-dwarfdump
 			llvm-dwp
-			llvm-elfabi
 			llvm-exegesis
 			llvm-extract
 			llvm-gsymutil
@@ -273,6 +274,7 @@ get_distribution_components() {
 			llvm-objcopy
 			llvm-objdump
 			llvm-opt-report
+			llvm-otool
 			llvm-pdbutil
 			llvm-profdata
 			llvm-profgen
@@ -282,13 +284,17 @@ get_distribution_components() {
 			llvm-readobj
 			llvm-reduce
 			llvm-rtdyld
+			llvm-sim
 			llvm-size
 			llvm-split
 			llvm-stress
 			llvm-strings
 			llvm-strip
 			llvm-symbolizer
+			llvm-tapi-diff
+			llvm-tli-checker
 			llvm-undname
+			llvm-windres
 			llvm-xray
 			obj2yaml
 			opt
@@ -314,7 +320,7 @@ get_distribution_components() {
 			docs-llvm-html
 		)
 
-		use gold && out+=(
+		use binutils-plugin && out+=(
 			LLVMgold
 		)
 	fi
@@ -363,7 +369,7 @@ multilib_src_configure() {
 		-DFFI_INCLUDE_DIR="${ffi_cflags#-I}"
 		-DFFI_LIBRARY_DIR="${ffi_ldflags#-L}"
 		# used only for llvm-objdump tool
-		-DHAVE_LIBXAR=$(multilib_native_usex xar 1 0)
+		-DLLVM_HAVE_LIBXAR=$(multilib_native_usex xar 1 0)
 
 		-DPython3_EXECUTABLE="${PYTHON}"
 
@@ -411,7 +417,7 @@ multilib_src_configure() {
 			-DLLVM_ENABLE_DOXYGEN=OFF
 			-DLLVM_INSTALL_UTILS=ON
 		)
-		use gold && mycmakeargs+=(
+		use binutils-plugin && mycmakeargs+=(
 			-DLLVM_BINUTILS_INCDIR="${EPREFIX}"/usr/include
 		)
 	fi
@@ -444,6 +450,9 @@ multilib_src_configure() {
 	use debug || local -x CPPFLAGS="${CPPFLAGS} -DNDEBUG"
 	cmake_src_configure
 
+	grep -q -E "^CMAKE_PROJECT_VERSION_MAJOR(:.*)?=$(ver_cut 1)$" \
+			CMakeCache.txt ||
+		die "Incorrect version, did you update _LLVM_MASTER_MAJOR?"
 	multilib_is_native_abi && check_distribution_components
 }
 

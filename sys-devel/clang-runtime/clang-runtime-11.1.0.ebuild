@@ -12,13 +12,12 @@ SRC_URI=""
 LICENSE="metapackage"
 SLOT="$(ver_cut 1-3)"
 KEYWORDS="amd64 arm arm64 ppc64 ~riscv x86 ~amd64-linux ~ppc-macos ~x64-macos ~loong"
-IUSE="+compiler-rt libcxx openmp +sanitize"
-REQUIRED_USE="sanitize? ( compiler-rt )"
+IUSE="+compiler-rt libcxx"
+REQUIRED_USE=""
 
 RDEPEND="
 	compiler-rt? (
 		~sys-libs/compiler-rt-${PV}:${SLOT}
-		sanitize? ( ~sys-libs/compiler-rt-sanitizers-${PV}:${SLOT} )
 	)
 	libcxx? ( >=sys-libs/libcxx-${PV}[${MULTILIB_USEDEP}] )
-	openmp? ( >=sys-libs/libomp-${PV}[${MULTILIB_USEDEP}] )"
+	"

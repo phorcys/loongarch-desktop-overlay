@@ -1,5 +1,5 @@
 diff --git a/llvm/CMakeLists.txt b/llvm/CMakeLists.txt
-index f8a25354978b..d98faf1bb405 100644
+index d2982f1c7d36f..de155aebe1e10 100644
 --- a/llvm/CMakeLists.txt
 +++ b/llvm/CMakeLists.txt
 @@ -342,6 +342,7 @@ set(LLVM_ALL_TARGETS
@@ -11,7 +11,7 @@ index f8a25354978b..d98faf1bb405 100644
    MSP430
    NVPTX
 diff --git a/llvm/cmake/config-ix.cmake b/llvm/cmake/config-ix.cmake
-index 18d78879c968..e16e1c73edab 100644
+index 18d78879c968f..e16e1c73edab0 100644
 --- a/llvm/cmake/config-ix.cmake
 +++ b/llvm/cmake/config-ix.cmake
 @@ -464,6 +464,8 @@ elseif (LLVM_NATIVE_ARCH MATCHES "riscv64")
@@ -23,11 +23,25 @@ index 18d78879c968..e16e1c73edab 100644
  else ()
    message(FATAL_ERROR "Unknown architecture ${LLVM_NATIVE_ARCH}")
  endif ()
+diff --git a/llvm/cmake/config.guess b/llvm/cmake/config.guess
+index 60d3f588d6f7e..255257d40b63a 100644
+--- a/llvm/cmake/config.guess
++++ b/llvm/cmake/config.guess
+@@ -1021,6 +1021,9 @@ EOF
+     x86_64:Linux:*:*)
+ 	echo x86_64-unknown-linux-gnu
+ 	exit ;;
++    loongarch64:Linux:*:*)
++	echo loongarch64-unknown-linux-gnu
++	exit ;;
+     xtensa*:Linux:*:*)
+ 	echo ${UNAME_MACHINE}-unknown-linux-gnu
+ 	exit ;;
 diff --git a/llvm/include/llvm/ADT/Triple.h b/llvm/include/llvm/ADT/Triple.h
-index 42277c013035..9a85c9e30b0d 100644
+index 42277c0130359..558d845fcc143 100644
 --- a/llvm/include/llvm/ADT/Triple.h
 +++ b/llvm/include/llvm/ADT/Triple.h
-@@ -58,6 +58,8 @@ public:
+@@ -58,6 +58,8 @@ class Triple {
      csky,           // CSKY: csky
      hexagon,        // Hexagon: hexagon
      m68k,           // M68k: Motorola 680x0 family
@@ -36,29 +50,30 @@ index 42277c013035..9a85c9e30b0d 100644
      mips,           // MIPS: mips, mipsallegrex, mipsr6
      mipsel,         // MIPSEL: mipsel, mipsallegrexe, mipsr6el
      mips64,         // MIPS64: mips64, mips64r6, mipsn32, mipsn32r6
-@@ -805,6 +807,20 @@ public:
-     return getArch() == Triple::ppc64 || getArch() == Triple::ppc64le;
+@@ -800,6 +802,21 @@ class Triple {
+     return getArch() == Triple::ppc || getArch() == Triple::ppcle;
    }
  
 +  /// Tests whether the target is LoongArch 32-bit
 +  bool isLoongArch32() const {
-+	  return getArch() == Triple::loongarch32;
++    return getArch() == Triple::loongarch32;
 +  }
 +
 +  /// Tests whether the target is LoongArch 64-bit.
 +  bool isLoongArch64() const {
-+	  return getArch() == Triple::loongarch64;
++    return getArch() == Triple::loongarch64;
 +  }
 +
 +  /// Tests whether the target is LoongArch (32- or 64-bit).
 +  bool isLoongArch() const {
-+	  return isLoongArch32() || isLoongArch64();
++    return isLoongArch32() || isLoongArch64();
 +  }
-   /// Tests whether the target is RISC-V (32- and 64-bit).
-   bool isRISCV() const {
-     return getArch() == Triple::riscv32 || getArch() == Triple::riscv64;
++
+   /// Tests whether the target is 64-bit PowerPC (little and big endian).
+   bool isPPC64() const {
+     return getArch() == Triple::ppc64 || getArch() == Triple::ppc64le;
 diff --git a/llvm/include/llvm/BinaryFormat/ELF.h b/llvm/include/llvm/BinaryFormat/ELF.h
-index 5d3b1270b538..af00ca0beab3 100644
+index 5d3b1270b5380..af00ca0beab38 100644
 --- a/llvm/include/llvm/BinaryFormat/ELF.h
 +++ b/llvm/include/llvm/BinaryFormat/ELF.h
 @@ -319,6 +319,7 @@ enum {
@@ -97,7 +112,7 @@ index 5d3b1270b538..af00ca0beab3 100644
  #include "ELFRelocs/SystemZ.def"
 diff --git a/llvm/include/llvm/BinaryFormat/ELFRelocs/LoongArch.def b/llvm/include/llvm/BinaryFormat/ELFRelocs/LoongArch.def
 new file mode 100644
-index 000000000000..131d26622e87
+index 0000000000000..131d26622e87a
 --- /dev/null
 +++ b/llvm/include/llvm/BinaryFormat/ELFRelocs/LoongArch.def
 @@ -0,0 +1,64 @@
@@ -166,7 +181,7 @@ index 000000000000..131d26622e87
 +ELF_RELOC(R_LARCH_GNU_VTINHERIT, 57)
 +ELF_RELOC(R_LARCH_GNU_VTENTRY, 58)
 diff --git a/llvm/include/llvm/IR/CMakeLists.txt b/llvm/include/llvm/IR/CMakeLists.txt
-index 0498fc269b63..b675a45d025e 100644
+index 0498fc269b634..b675a45d025e1 100644
 --- a/llvm/include/llvm/IR/CMakeLists.txt
 +++ b/llvm/include/llvm/IR/CMakeLists.txt
 @@ -9,6 +9,7 @@ tablegen(LLVM IntrinsicsAMDGPU.h -gen-intrinsic-enums -intrinsic-prefix=amdgcn)
@@ -178,10 +193,10 @@ index 0498fc269b63..b675a45d025e 100644
  tablegen(LLVM IntrinsicsNVPTX.h -gen-intrinsic-enums -intrinsic-prefix=nvvm)
  tablegen(LLVM IntrinsicsPowerPC.h -gen-intrinsic-enums -intrinsic-prefix=ppc)
 diff --git a/llvm/include/llvm/IR/InlineAsm.h b/llvm/include/llvm/IR/InlineAsm.h
-index cf6b7af96980..983fe97e936a 100644
+index cf6b7af96980e..983fe97e936aa 100644
 --- a/llvm/include/llvm/IR/InlineAsm.h
 +++ b/llvm/include/llvm/IR/InlineAsm.h
-@@ -266,6 +266,7 @@ public:
+@@ -266,6 +266,7 @@ class InlineAsm final : public Value {
      Constraint_Uy,
      Constraint_X,
      Constraint_Z,
@@ -190,7 +205,7 @@ index cf6b7af96980..983fe97e936a 100644
      Constraint_Zy,
      Constraints_Max = Constraint_Zy,
 diff --git a/llvm/include/llvm/IR/Intrinsics.td b/llvm/include/llvm/IR/Intrinsics.td
-index f5248e82ad21..d4a8df4abdf9 100644
+index f5248e82ad21b..d4a8df4abdf91 100644
 --- a/llvm/include/llvm/IR/Intrinsics.td
 +++ b/llvm/include/llvm/IR/Intrinsics.td
 @@ -1937,3 +1937,4 @@ include "llvm/IR/IntrinsicsSystemZ.td"
@@ -200,15 +215,16 @@ index f5248e82ad21..d4a8df4abdf9 100644
 +include "llvm/IR/IntrinsicsLoongArch.td"
 diff --git a/llvm/include/llvm/IR/IntrinsicsLoongArch.td b/llvm/include/llvm/IR/IntrinsicsLoongArch.td
 new file mode 100644
-index 000000000000..e43f34cc5440
+index 0000000000000..cc9717a86d59a
 --- /dev/null
 +++ b/llvm/include/llvm/IR/IntrinsicsLoongArch.td
-@@ -0,0 +1,129 @@
+@@ -0,0 +1,130 @@
 +//===- IntrinsicsLoongArch.td - Defines LoongArch intrinsics ---------*- tablegen -*-===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +//
@@ -334,7 +350,7 @@ index 000000000000..e43f34cc5440
 +
 +}
 diff --git a/llvm/include/llvm/Object/ELFObjectFile.h b/llvm/include/llvm/Object/ELFObjectFile.h
-index e2d2784d4f23..72099865516c 100644
+index e2d2784d4f238..72099865516cd 100644
 --- a/llvm/include/llvm/Object/ELFObjectFile.h
 +++ b/llvm/include/llvm/Object/ELFObjectFile.h
 @@ -1197,6 +1197,8 @@ StringRef ELFObjectFile<ELFT>::getFileFormatName() const {
@@ -372,19 +388,19 @@ index e2d2784d4f23..72099865516c 100644
      return Triple::systemz;
  
 diff --git a/llvm/include/llvm/module.modulemap b/llvm/include/llvm/module.modulemap
-index d0693ccfd8f6..31bd4bdf734f 100644
+index d0693ccfd8f6c..3fd97d0717aff 100644
 --- a/llvm/include/llvm/module.modulemap
 +++ b/llvm/include/llvm/module.modulemap
-@@ -72,6 +72,7 @@ module LLVM_BinaryFormat {
+@@ -71,6 +71,7 @@ module LLVM_BinaryFormat {
+     textual header "BinaryFormat/ELFRelocs/Hexagon.def"
      textual header "BinaryFormat/ELFRelocs/i386.def"
      textual header "BinaryFormat/ELFRelocs/Lanai.def"
-     textual header "BinaryFormat/ELFRelocs/M68k.def"
 +    textual header "BinaryFormat/ELFRelocs/LoongArch.def"
+     textual header "BinaryFormat/ELFRelocs/M68k.def"
      textual header "BinaryFormat/ELFRelocs/Mips.def"
      textual header "BinaryFormat/ELFRelocs/MSP430.def"
-     textual header "BinaryFormat/ELFRelocs/PowerPC64.def"
 diff --git a/llvm/lib/CodeGen/RegisterScavenging.cpp b/llvm/lib/CodeGen/RegisterScavenging.cpp
-index 424ad7419165..527175589867 100644
+index 424ad74191652..5271755898677 100644
 --- a/llvm/lib/CodeGen/RegisterScavenging.cpp
 +++ b/llvm/lib/CodeGen/RegisterScavenging.cpp
 @@ -424,6 +424,10 @@ findSurvivorBackwards(const MachineRegisterInfo &MRI,
@@ -399,7 +415,7 @@ index 424ad7419165..527175589867 100644
          break;
      }
 diff --git a/llvm/lib/CodeGen/TargetLoweringObjectFileImpl.cpp b/llvm/lib/CodeGen/TargetLoweringObjectFileImpl.cpp
-index ce350034d073..7688061bdb42 100644
+index ce350034d0731..7688061bdb424 100644
 --- a/llvm/lib/CodeGen/TargetLoweringObjectFileImpl.cpp
 +++ b/llvm/lib/CodeGen/TargetLoweringObjectFileImpl.cpp
 @@ -207,6 +207,16 @@ void TargetLoweringObjectFileELF::Initialize(MCContext &Ctx,
@@ -420,7 +436,7 @@ index ce350034d073..7688061bdb42 100644
    case Triple::mipsel:
    case Triple::mips64:
 diff --git a/llvm/lib/CodeGen/XRayInstrumentation.cpp b/llvm/lib/CodeGen/XRayInstrumentation.cpp
-index b66429d8a5bf..0562a823a609 100644
+index b66429d8a5bf5..0562a823a6099 100644
 --- a/llvm/lib/CodeGen/XRayInstrumentation.cpp
 +++ b/llvm/lib/CodeGen/XRayInstrumentation.cpp
 @@ -227,6 +227,8 @@ bool XRayInstrumentation::runOnMachineFunction(MachineFunction &MF) {
@@ -433,7 +449,7 @@ index b66429d8a5bf..0562a823a609 100644
      case Triple::ArchType::mipsel:
      case Triple::ArchType::mips64:
 diff --git a/llvm/lib/IR/Function.cpp b/llvm/lib/IR/Function.cpp
-index 726ba80da41b..26819818f75b 100644
+index 726ba80da41b9..26819818f75bc 100644
 --- a/llvm/lib/IR/Function.cpp
 +++ b/llvm/lib/IR/Function.cpp
 @@ -37,6 +37,7 @@
@@ -445,7 +461,7 @@ index 726ba80da41b..26819818f75b 100644
  #include "llvm/IR/IntrinsicsNVPTX.h"
  #include "llvm/IR/IntrinsicsPowerPC.h"
 diff --git a/llvm/lib/MC/MCObjectFileInfo.cpp b/llvm/lib/MC/MCObjectFileInfo.cpp
-index b7890e7f0937..f606df4f3199 100644
+index b7890e7f0937b..f606df4f31992 100644
 --- a/llvm/lib/MC/MCObjectFileInfo.cpp
 +++ b/llvm/lib/MC/MCObjectFileInfo.cpp
 @@ -316,6 +316,12 @@ void MCObjectFileInfo::initMachOMCObjectFileInfo(const Triple &T) {
@@ -462,7 +478,7 @@ index b7890e7f0937..f606df4f3199 100644
    case Triple::mipsel:
    case Triple::mips64:
 diff --git a/llvm/lib/Object/ELF.cpp b/llvm/lib/Object/ELF.cpp
-index 56a426211755..e46aff762583 100644
+index 56a4262117551..e46aff7625837 100644
 --- a/llvm/lib/Object/ELF.cpp
 +++ b/llvm/lib/Object/ELF.cpp
 @@ -101,6 +101,13 @@ StringRef llvm::object::getELFRelocationTypeName(uint32_t Machine,
@@ -480,10 +496,10 @@ index 56a426211755..e46aff762583 100644
      switch (Type) {
  #include "llvm/BinaryFormat/ELFRelocs/PowerPC64.def"
 diff --git a/llvm/lib/Support/Host.cpp b/llvm/lib/Support/Host.cpp
-index f6003b783245..c1b9d1a20e31 100644
+index a82a4d451c8a3..16f554021cf79 100644
 --- a/llvm/lib/Support/Host.cpp
 +++ b/llvm/lib/Support/Host.cpp
-@@ -1299,6 +1299,45 @@ StringRef sys::getHostCPUName() {
+@@ -1305,6 +1305,45 @@ StringRef sys::getHostCPUName() {
    bool HaveVectorSupport = CVT[244] & 0x80;
    return getCPUNameFromS390Model(Id, HaveVectorSupport);
  }
@@ -529,7 +545,7 @@ index f6003b783245..c1b9d1a20e31 100644
  #elif defined(__APPLE__) && defined(__aarch64__)
  StringRef sys::getHostCPUName() {
    return "cyclone";
-@@ -1753,6 +1792,36 @@ bool sys::getHostCPUFeatures(StringMap<bool> &Features) {
+@@ -1759,6 +1798,36 @@ bool sys::getHostCPUFeatures(StringMap<bool> &Features) {
  
    return true;
  }
@@ -567,29 +583,28 @@ index f6003b783245..c1b9d1a20e31 100644
  bool sys::getHostCPUFeatures(StringMap<bool> &Features) { return false; }
  #endif
 diff --git a/llvm/lib/Support/Triple.cpp b/llvm/lib/Support/Triple.cpp
-index a9afcc9db96a..a6d18a62055e 100644
+index a9afcc9db96ab..ea1e6f51921b3 100644
 --- a/llvm/lib/Support/Triple.cpp
 +++ b/llvm/lib/Support/Triple.cpp
-@@ -45,6 +45,8 @@ StringRef Triple::getArchTypeName(ArchType Kind) {
+@@ -44,6 +44,8 @@ StringRef Triple::getArchTypeName(ArchType Kind) {
+   case lanai:          return "lanai";
    case le32:           return "le32";
    case le64:           return "le64";
-   case m68k:           return "m68k";
 +  case loongarch32:    return "loongarch32";
 +  case loongarch64:    return "loongarch64";
+   case m68k:           return "m68k";
    case mips64:         return "mips64";
    case mips64el:       return "mips64el";
-   case mips:           return "mips";
-@@ -164,6 +166,9 @@ StringRef Triple::getArchTypePrefix(ArchType Kind) {
+@@ -164,6 +166,8 @@ StringRef Triple::getArchTypePrefix(ArchType Kind) {
  
    case ve:          return "ve";
    case csky:        return "csky";
-+
 +  case loongarch32:
 +  case loongarch64: return "loongarch";
    }
  }
  
-@@ -340,6 +345,8 @@ Triple::ArchType Triple::getArchTypeForLLVMName(StringRef Name) {
+@@ -340,6 +344,8 @@ Triple::ArchType Triple::getArchTypeForLLVMName(StringRef Name) {
      .Case("renderscript64", renderscript64)
      .Case("ve", ve)
      .Case("csky", csky)
@@ -598,7 +613,7 @@ index a9afcc9db96a..a6d18a62055e 100644
      .Default(UnknownArch);
  }
  
-@@ -475,6 +482,8 @@ static Triple::ArchType parseArch(StringRef ArchName) {
+@@ -475,6 +481,8 @@ static Triple::ArchType parseArch(StringRef ArchName) {
      .Case("wasm32", Triple::wasm32)
      .Case("wasm64", Triple::wasm64)
      .Case("csky", Triple::csky)
@@ -607,16 +622,16 @@ index a9afcc9db96a..a6d18a62055e 100644
      .Default(Triple::UnknownArch);
  
    // Some architectures require special parsing logic just to compute the
-@@ -732,6 +741,8 @@ static Triple::ObjectFormatType getDefaultFormat(const Triple &T) {
+@@ -731,6 +739,8 @@ static Triple::ObjectFormatType getDefaultFormat(const Triple &T) {
+   case Triple::lanai:
    case Triple::le32:
    case Triple::le64:
-   case Triple::m68k:
 +  case Triple::loongarch32:
 +  case Triple::loongarch64:
+   case Triple::m68k:
    case Triple::mips64:
    case Triple::mips64el:
-   case Triple::mips:
-@@ -813,6 +824,7 @@ Triple::Triple(const Twine &Str)
+@@ -813,6 +823,7 @@ Triple::Triple(const Twine &Str)
                .StartsWith("mipsisa64", Triple::GNUABI64)
                .StartsWith("mipsisa32", Triple::GNU)
                .Cases("mips", "mipsel", "mipsr6", "mipsr6el", Triple::GNU)
@@ -624,15 +639,15 @@ index a9afcc9db96a..a6d18a62055e 100644
                .Default(UnknownEnvironment);
      }
    }
-@@ -1291,6 +1303,7 @@ static unsigned getArchPointerBitWidth(llvm::Triple::ArchType Arch) {
+@@ -1290,6 +1301,7 @@ static unsigned getArchPointerBitWidth(llvm::Triple::ArchType Arch) {
+   case llvm::Triple::kalimba:
    case llvm::Triple::lanai:
    case llvm::Triple::le32:
-   case llvm::Triple::m68k:
 +  case llvm::Triple::loongarch32:
+   case llvm::Triple::m68k:
    case llvm::Triple::mips:
    case llvm::Triple::mipsel:
-   case llvm::Triple::nvptx:
-@@ -1321,6 +1334,7 @@ static unsigned getArchPointerBitWidth(llvm::Triple::ArchType Arch) {
+@@ -1321,6 +1333,7 @@ static unsigned getArchPointerBitWidth(llvm::Triple::ArchType Arch) {
    case llvm::Triple::bpfel:
    case llvm::Triple::hsail64:
    case llvm::Triple::le64:
@@ -640,15 +655,15 @@ index a9afcc9db96a..a6d18a62055e 100644
    case llvm::Triple::mips64:
    case llvm::Triple::mips64el:
    case llvm::Triple::nvptx64:
-@@ -1378,6 +1392,7 @@ Triple Triple::get32BitArchVariant() const {
+@@ -1377,6 +1390,7 @@ Triple Triple::get32BitArchVariant() const {
+   case Triple::kalimba:
    case Triple::lanai:
    case Triple::le32:
-   case Triple::m68k:
 +  case Triple::loongarch32:
+   case Triple::m68k:
    case Triple::mips:
    case Triple::mipsel:
-   case Triple::nvptx:
-@@ -1406,6 +1421,7 @@ Triple Triple::get32BitArchVariant() const {
+@@ -1406,6 +1420,7 @@ Triple Triple::get32BitArchVariant() const {
    case Triple::amdil64:        T.setArch(Triple::amdil);   break;
    case Triple::hsail64:        T.setArch(Triple::hsail);   break;
    case Triple::le64:           T.setArch(Triple::le32);    break;
@@ -656,7 +671,7 @@ index a9afcc9db96a..a6d18a62055e 100644
    case Triple::mips64:
      T.setArch(Triple::mips, getSubArch());
      break;
-@@ -1455,6 +1471,7 @@ Triple Triple::get64BitArchVariant() const {
+@@ -1455,6 +1470,7 @@ Triple Triple::get64BitArchVariant() const {
    case Triple::bpfel:
    case Triple::hsail64:
    case Triple::le64:
@@ -664,15 +679,23 @@ index a9afcc9db96a..a6d18a62055e 100644
    case Triple::mips64:
    case Triple::mips64el:
    case Triple::nvptx64:
-@@ -1478,6 +1495,7 @@ Triple Triple::get64BitArchVariant() const {
+@@ -1478,12 +1494,9 @@ Triple Triple::get64BitArchVariant() const {
    case Triple::armeb:           T.setArch(Triple::aarch64_be); break;
    case Triple::hsail:           T.setArch(Triple::hsail64);    break;
    case Triple::le32:            T.setArch(Triple::le64);       break;
+-  case Triple::mips:
+-    T.setArch(Triple::mips64, getSubArch());
+-    break;
+-  case Triple::mipsel:
+-    T.setArch(Triple::mips64el, getSubArch());
+-    break;
 +  case Triple::loongarch32:     T.setArch(Triple::loongarch64);        break;
-   case Triple::mips:
-     T.setArch(Triple::mips64, getSubArch());
-     break;
-@@ -1517,6 +1535,8 @@ Triple Triple::getBigEndianArchVariant() const {
++  case Triple::mips:            T.setArch(Triple::mips64);     break;
++  case Triple::mipsel:          T.setArch(Triple::mips64el);   break;
+   case Triple::nvptx:           T.setArch(Triple::nvptx64);    break;
+   case Triple::ppc:             T.setArch(Triple::ppc64);      break;
+   case Triple::ppcle:           T.setArch(Triple::ppc64le);    break;
+@@ -1517,6 +1530,8 @@ Triple Triple::getBigEndianArchVariant() const {
    case Triple::kalimba:
    case Triple::le32:
    case Triple::le64:
@@ -681,7 +704,7 @@ index a9afcc9db96a..a6d18a62055e 100644
    case Triple::msp430:
    case Triple::nvptx64:
    case Triple::nvptx:
-@@ -1617,6 +1637,8 @@ bool Triple::isLittleEndian() const {
+@@ -1617,6 +1632,8 @@ bool Triple::isLittleEndian() const {
    case Triple::kalimba:
    case Triple::le32:
    case Triple::le64:
@@ -690,148 +713,30 @@ index a9afcc9db96a..a6d18a62055e 100644
    case Triple::mips64el:
    case Triple::mipsel:
    case Triple::msp430:
-diff --git a/llvm/lib/Target/LLVMBuild.txt b/llvm/lib/Target/LLVMBuild.txt
-new file mode 100644
-index 000000000000..bb217aa41e6e
---- /dev/null
-+++ b/llvm/lib/Target/LLVMBuild.txt
-@@ -0,0 +1,77 @@
-+;===- ./lib/Target/LLVMBuild.txt -------------------------------*- Conf -*--===;
-+;
-+; Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+; See https://llvm.org/LICENSE.txt for license information.
-+; SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-+;
-+;===------------------------------------------------------------------------===;
-+;
-+; This is an LLVMBuild description file for the components in this subdirectory.
-+;
-+; For more information on the LLVMBuild system, please see:
-+;
-+;   http://llvm.org/docs/LLVMBuild.html
-+;
-+;===------------------------------------------------------------------------===;
-+
-+; Please keep these as one per line so that out-of-tree merges
-+; will typically require only insertion of a line.
-+[common]
-+subdirectories =
-+ AArch64
-+ AMDGPU
-+ ARC
-+ ARM
-+ AVR
-+ BPF
-+ Hexagon
-+ Lanai
-+ MSP430
-+ LoongArch
-+ Mips
-+ NVPTX
-+ PowerPC
-+ RISCV
-+ Sparc
-+ SystemZ
-+ VE
-+ WebAssembly
-+ X86
-+ XCore
-+
-+; This is a special group whose required libraries are extended (by llvm-build)
-+; with the best execution engine (the native JIT, if available, or the
-+; interpreter).
-+[component_0]
-+type = LibraryGroup
-+name = Engine
-+parent = Libraries
-+
-+; This is a special group whose required libraries are extended (by llvm-build)
-+; with the configured native target, if any.
-+[component_1]
-+type = LibraryGroup
-+name = Native
-+parent = Libraries
-+
-+; This is a special group whose required libraries are extended (by llvm-build)
-+; with the configured native code generator, if any.
-+[component_2]
-+type = LibraryGroup
-+name = NativeCodeGen
-+parent = Libraries
-+
-+; The component for the actual target library itself.
-+[component_3]
-+type = Library
-+name = Target
-+parent = Libraries
-+required_libraries = Analysis Core MC Support
-+
-+; This is a special group whose required libraries are extended (by llvm-build)
-+; with every built target, which makes it easy for tools to include every
-+; target.
-+[component_4]
-+type = LibraryGroup
-+name = all-targets
-+parent = Libraries
 diff --git a/llvm/lib/Target/LoongArch/AsmParser/CMakeLists.txt b/llvm/lib/Target/LoongArch/AsmParser/CMakeLists.txt
 new file mode 100644
-index 000000000000..72c1d1a4dc7e
+index 0000000000000..9111909638656
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/AsmParser/CMakeLists.txt
-@@ -0,0 +1,14 @@
+@@ -0,0 +1,6 @@
 +add_llvm_component_library(LLVMLoongArchAsmParser
 +  LoongArchAsmParser.cpp
 +
-+  LINK_COMPONENTS
-+  MC
-+  MCParser
-+  LoongArchDesc
-+  LoongArchInfo
-+  Support
-+
 +  ADD_TO_COMPONENT
 +  LoongArch
-+
 +  )
-diff --git a/llvm/lib/Target/LoongArch/AsmParser/LLVMBuild.txt b/llvm/lib/Target/LoongArch/AsmParser/LLVMBuild.txt
-new file mode 100644
-index 000000000000..8fbecde89dd8
---- /dev/null
-+++ b/llvm/lib/Target/LoongArch/AsmParser/LLVMBuild.txt
-@@ -0,0 +1,22 @@
-+;===- ./lib/Target/LoongArch/AsmParser/LLVMBuild.txt ----------------*- Conf -*--===;
-+;
-+; Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+; See https://llvm.org/LICENSE.txt for license information.
-+; SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-+;
-+;===------------------------------------------------------------------------===;
-+;
-+; This is an LLVMBuild description file for the components in this subdirectory.
-+;
-+; For more information on the LLVMBuild system, please see:
-+;
-+;   http://llvm.org/docs/LLVMBuild.html
-+;
-+;===------------------------------------------------------------------------===;
-+
-+[component_0]
-+type = Library
-+name = LoongArchAsmParser
-+parent = LoongArch
-+required_libraries = MC MCParser LoongArchDesc LoongArchInfo Support
-+add_to_library_groups = LoongArch
 diff --git a/llvm/lib/Target/LoongArch/AsmParser/LoongArchAsmParser.cpp b/llvm/lib/Target/LoongArch/AsmParser/LoongArchAsmParser.cpp
 new file mode 100644
-index 000000000000..0459db2d5d28
+index 0000000000000..50b37c3c8e903
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/AsmParser/LoongArchAsmParser.cpp
-@@ -0,0 +1,2132 @@
+@@ -0,0 +1,2133 @@
 +//===-- LoongArchAsmParser.cpp - Parse LoongArch assembly to MCInst instructions ----===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +
@@ -866,6 +771,7 @@ index 000000000000..0459db2d5d28
 +#include "llvm/MC/MCSymbolELF.h"
 +#include "llvm/MC/MCValue.h"
 +#include "llvm/MC/SubtargetFeature.h"
++#include "llvm/MC/TargetRegistry.h"
 +#include "llvm/Support/Casting.h"
 +#include "llvm/Support/CommandLine.h"
 +#include "llvm/Support/Compiler.h"
@@ -874,7 +780,6 @@ index 000000000000..0459db2d5d28
 +#include "llvm/Support/MathExtras.h"
 +#include "llvm/Support/SMLoc.h"
 +#include "llvm/Support/SourceMgr.h"
-+#include "llvm/MC/TargetRegistry.h"
 +#include "llvm/Support/raw_ostream.h"
 +#include <algorithm>
 +#include <cassert>
@@ -2961,10 +2866,10 @@ index 000000000000..0459db2d5d28
 +}
 diff --git a/llvm/lib/Target/LoongArch/CMakeLists.txt b/llvm/lib/Target/LoongArch/CMakeLists.txt
 new file mode 100644
-index 000000000000..df851fe30932
+index 0000000000000..264ecf86fdbe1
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/CMakeLists.txt
-@@ -0,0 +1,56 @@
+@@ -0,0 +1,47 @@
 +add_llvm_component_group(LoongArch)
 +
 +set(LLVM_TARGET_DEFINITIONS LoongArch.td)
@@ -2999,22 +2904,13 @@ index 000000000000..df851fe30932
 +  LoongArchTargetMachine.cpp
 +  LoongArchTargetObjectFile.cpp
 +
-+  LINK_COMPONENTS
-+  Analysis
-+  AsmPrinter
-+  Core
-+  CodeGen
-+  MC
-+  LoongArchDesc
-+  LoongArchInfo
-+  SelectionDAG
-+  Support
-+  Target
-+  GlobalISel
-+
 +  ADD_TO_COMPONENT
 +  LoongArch
 +
++  LINK_COMPONENTS
++  AsmPrinter
++  CodeGen
++  SelectionDAG
 +  )
 +
 +add_subdirectory(AsmParser)
@@ -3023,61 +2919,31 @@ index 000000000000..df851fe30932
 +add_subdirectory(TargetInfo)
 diff --git a/llvm/lib/Target/LoongArch/Disassembler/CMakeLists.txt b/llvm/lib/Target/LoongArch/Disassembler/CMakeLists.txt
 new file mode 100644
-index 000000000000..17e747c5dcb7
+index 0000000000000..f364fcdf12f79
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/Disassembler/CMakeLists.txt
-@@ -0,0 +1,12 @@
+@@ -0,0 +1,9 @@
 +add_llvm_component_library(LLVMLoongArchDisassembler
 +  LoongArchDisassembler.cpp
-+
-+  LINK_COMPONENTS
-+  MCDisassembler
-+  LoongArchInfo
-+  Support
 +
 +  ADD_TO_COMPONENT
 +  LoongArch
 +
++  LINK_COMPONENTS
++  MCDisassembler
 +  )
-diff --git a/llvm/lib/Target/LoongArch/Disassembler/LLVMBuild.txt b/llvm/lib/Target/LoongArch/Disassembler/LLVMBuild.txt
-new file mode 100644
-index 000000000000..ebdd9686b42d
---- /dev/null
-+++ b/llvm/lib/Target/LoongArch/Disassembler/LLVMBuild.txt
-@@ -0,0 +1,22 @@
-+;===- ./lib/Target/LoongArch/Disassembler/LLVMBuild.txt -------------*- Conf -*--===;
-+;
-+; Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+; See https://llvm.org/LICENSE.txt for license information.
-+; SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-+;
-+;===------------------------------------------------------------------------===;
-+;
-+; This is an LLVMBuild description file for the components in this subdirectory.
-+;
-+; For more information on the LLVMBuild system, please see:
-+;
-+;   http://llvm.org/docs/LLVMBuild.html
-+;
-+;===------------------------------------------------------------------------===;
-+
-+[component_0]
-+type = Library
-+name = LoongArchDisassembler
-+parent = LoongArch
-+required_libraries = MCDisassembler LoongArchInfo Support
-+add_to_library_groups = LoongArch
 diff --git a/llvm/lib/Target/LoongArch/Disassembler/LoongArchDisassembler.cpp b/llvm/lib/Target/LoongArch/Disassembler/LoongArchDisassembler.cpp
 new file mode 100644
-index 000000000000..92282da63394
+index 0000000000000..eac4dd017a7af
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/Disassembler/LoongArchDisassembler.cpp
-@@ -0,0 +1,403 @@
+@@ -0,0 +1,429 @@
 +//===- LoongArchDisassembler.cpp - Disassembler for LoongArch -----------------------===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +//
@@ -3094,11 +2960,11 @@ index 000000000000..92282da63394
 +#include "llvm/MC/MCInst.h"
 +#include "llvm/MC/MCRegisterInfo.h"
 +#include "llvm/MC/MCSubtargetInfo.h"
++#include "llvm/MC/TargetRegistry.h"
 +#include "llvm/Support/Compiler.h"
 +#include "llvm/Support/Debug.h"
 +#include "llvm/Support/ErrorHandling.h"
 +#include "llvm/Support/MathExtras.h"
-+#include "llvm/MC/TargetRegistry.h"
 +#include "llvm/Support/raw_ostream.h"
 +#include <cassert>
 +#include <cstdint>
@@ -3177,6 +3043,11 @@ index 000000000000..92282da63394
 +                              unsigned Insn,
 +                              uint64_t Address,
 +                              const void *Decoder);
++
++static DecodeStatus DecodeMemForAtomicOp(MCInst &Inst,
++                                         unsigned Insn,
++                                         uint64_t Address,
++                                         const void *Decoder);
 +
 +static DecodeStatus DecodeMemSimm14(MCInst &Inst,
 +                                    unsigned Insn,
@@ -3399,6 +3270,26 @@ index 000000000000..92282da63394
 +  return MCDisassembler::Success;
 +}
 +
++static DecodeStatus DecodeMemForAtomicOp(MCInst &Inst,
++                                         unsigned Insn,
++                                         uint64_t Address,
++                                         const void *Decoder) {
++  unsigned Val = fieldFromInstruction(Insn, 10, 5);
++  unsigned Reg = fieldFromInstruction(Insn, 0, 5);
++  unsigned Base = fieldFromInstruction(Insn, 5, 5);
++
++  Val = getReg(Decoder, LoongArch::GPR32RegClassID, Val);
++  Reg = getReg(Decoder, LoongArch::GPR32RegClassID, Reg);
++  Base = getReg(Decoder, LoongArch::GPR32RegClassID, Base);
++
++  Inst.addOperand(MCOperand::createReg(Reg));
++  Inst.addOperand(MCOperand::createReg(Val));
++  Inst.addOperand(MCOperand::createReg(Base));
++  Inst.addOperand(MCOperand::createImm(0));
++
++  return MCDisassembler::Success;
++}
++
 +static DecodeStatus DecodeMemSimm14(MCInst &Inst,
 +                                    unsigned Insn,
 +                                    uint64_t Address,
@@ -3476,66 +3367,18 @@ index 000000000000..92282da63394
 +  Inst.addOperand(MCOperand::createImm(Imm + Offset));
 +  return MCDisassembler::Success;
 +}
-diff --git a/llvm/lib/Target/LoongArch/LLVMBuild.txt b/llvm/lib/Target/LoongArch/LLVMBuild.txt
-new file mode 100644
-index 000000000000..6157234f45e1
---- /dev/null
-+++ b/llvm/lib/Target/LoongArch/LLVMBuild.txt
-@@ -0,0 +1,43 @@
-+;===- ./lib/Target/LoongArch/LLVMBuild.txt --------------------------*- Conf -*--===;
-+;
-+; Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+; See https://llvm.org/LICENSE.txt for license information.
-+; SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-+;
-+;===------------------------------------------------------------------------===;
-+;
-+; This is an LLVMBuild description file for the components in this subdirectory.
-+;
-+; For more information on the LLVMBuild system, please see:
-+;
-+;   http://llvm.org/docs/LLVMBuild.html
-+;
-+;===------------------------------------------------------------------------===;
-+
-+[common]
-+subdirectories = AsmParser Disassembler MCTargetDesc TargetInfo
-+
-+[component_0]
-+type = TargetGroup
-+name = LoongArch
-+parent = Target
-+has_asmparser = 1
-+has_asmprinter = 1
-+has_disassembler = 1
-+
-+[component_1]
-+type = Library
-+name = LoongArchCodeGen
-+parent = LoongArch
-+required_libraries =
-+ Analysis
-+ AsmPrinter
-+ CodeGen
-+ Core
-+ MC
-+ LoongArchDesc
-+ LoongArchInfo
-+ SelectionDAG
-+ Support
-+ Target
-+add_to_library_groups = LoongArch
 diff --git a/llvm/lib/Target/LoongArch/LoongArch.h b/llvm/lib/Target/LoongArch/LoongArch.h
 new file mode 100644
-index 000000000000..73fd4a628edb
+index 0000000000000..4366a00927f49
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/LoongArch.h
-@@ -0,0 +1,37 @@
+@@ -0,0 +1,38 @@
 +//===-- LoongArch.h - Top-level interface for LoongArch representation ----*- C++ -*-===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +//
@@ -3570,15 +3413,16 @@ index 000000000000..73fd4a628edb
 +#endif
 diff --git a/llvm/lib/Target/LoongArch/LoongArch.td b/llvm/lib/Target/LoongArch/LoongArch.td
 new file mode 100644
-index 000000000000..d24b12eb6d35
+index 0000000000000..502af9ec1c778
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/LoongArch.td
-@@ -0,0 +1,95 @@
+@@ -0,0 +1,96 @@
 +//===-- LoongArch.td - Describe the LoongArch Target Machine ---------*- tablegen -*-===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +// This is the top level entry point for the LoongArch target.
@@ -3671,15 +3515,16 @@ index 000000000000..d24b12eb6d35
 +}
 diff --git a/llvm/lib/Target/LoongArch/LoongArch32InstrInfo.td b/llvm/lib/Target/LoongArch/LoongArch32InstrInfo.td
 new file mode 100644
-index 000000000000..ae30e7ea1d60
+index 0000000000000..369528523e640
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/LoongArch32InstrInfo.td
-@@ -0,0 +1,723 @@
+@@ -0,0 +1,724 @@
 +//===- LoongArch32InstrInfo.td - Target Description for LoongArch Target -*- tablegen -*-=//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +//
@@ -4400,15 +4245,16 @@ index 000000000000..ae30e7ea1d60
 +                  )>;
 diff --git a/llvm/lib/Target/LoongArch/LoongArchAnalyzeImmediate.cpp b/llvm/lib/Target/LoongArch/LoongArchAnalyzeImmediate.cpp
 new file mode 100644
-index 000000000000..78c80e5fb50d
+index 0000000000000..b04532eabe34f
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/LoongArchAnalyzeImmediate.cpp
-@@ -0,0 +1,134 @@
+@@ -0,0 +1,135 @@
 +//===- LoongArchAnalyzeImmediate.cpp - Analyze Immediates ----------------------===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +
@@ -4540,15 +4386,16 @@ index 000000000000..78c80e5fb50d
 +}
 diff --git a/llvm/lib/Target/LoongArch/LoongArchAnalyzeImmediate.h b/llvm/lib/Target/LoongArch/LoongArchAnalyzeImmediate.h
 new file mode 100644
-index 000000000000..36ac7266cf69
+index 0000000000000..e4fe793159d26
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/LoongArchAnalyzeImmediate.h
-@@ -0,0 +1,66 @@
+@@ -0,0 +1,67 @@
 +//===- LoongArchAnalyzeImmediate.h - Analyze Immediates -------------*- C++ -*--===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +
@@ -4612,15 +4459,16 @@ index 000000000000..36ac7266cf69
 +#endif // LLVM_LIB_TARGET_LOONGARCH_LOONGARCHANALYZEIMMEDIATE_H
 diff --git a/llvm/lib/Target/LoongArch/LoongArchAsmPrinter.cpp b/llvm/lib/Target/LoongArch/LoongArchAsmPrinter.cpp
 new file mode 100644
-index 000000000000..4c460210767c
+index 0000000000000..a2746746acba8
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/LoongArchAsmPrinter.cpp
-@@ -0,0 +1,591 @@
+@@ -0,0 +1,592 @@
 +//===- LoongArchAsmPrinter.cpp - LoongArch LLVM Assembly Printer --------------------===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +//
@@ -4668,9 +4516,9 @@ index 000000000000..4c460210767c
 +#include "llvm/MC/MCSectionELF.h"
 +#include "llvm/MC/MCSymbol.h"
 +#include "llvm/MC/MCSymbolELF.h"
++#include "llvm/MC/TargetRegistry.h"
 +#include "llvm/Support/Casting.h"
 +#include "llvm/Support/ErrorHandling.h"
-+#include "llvm/MC/TargetRegistry.h"
 +#include "llvm/Support/raw_ostream.h"
 +#include "llvm/Target/TargetMachine.h"
 +#include <cassert>
@@ -5101,7 +4949,7 @@ index 000000000000..4c460210767c
 +  StringRef CPU = LoongArch_MC::selectLoongArchCPU(TT, TM.getTargetCPU());
 +  StringRef FS = TM.getTargetFeatureString();
 +  const LoongArchTargetMachine &MTM = static_cast<const LoongArchTargetMachine &>(TM);
-+  const LoongArchSubtarget STI(TT, CPU,CPU, FS, MTM, None);
++  const LoongArchSubtarget STI(TT, CPU, CPU, FS, MTM, None);
 +
 +  TS.updateABIInfo(STI);
 +}
@@ -5209,15 +5057,16 @@ index 000000000000..4c460210767c
 +}
 diff --git a/llvm/lib/Target/LoongArch/LoongArchAsmPrinter.h b/llvm/lib/Target/LoongArch/LoongArchAsmPrinter.h
 new file mode 100644
-index 000000000000..0facaa294721
+index 0000000000000..1d8f11e4a2767
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/LoongArchAsmPrinter.h
-@@ -0,0 +1,138 @@
+@@ -0,0 +1,139 @@
 +//===- LoongArchAsmPrinter.h - LoongArch LLVM Assembly Printer -----------*- C++ -*--===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +//
@@ -5353,15 +5202,16 @@ index 000000000000..0facaa294721
 +#endif // LLVM_LIB_TARGET_LOONGARCH_LOONGARCHASMPRINTER_H
 diff --git a/llvm/lib/Target/LoongArch/LoongArchCCState.cpp b/llvm/lib/Target/LoongArch/LoongArchCCState.cpp
 new file mode 100644
-index 000000000000..18996f1e2307
+index 0000000000000..dd39b9072e235
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/LoongArchCCState.cpp
-@@ -0,0 +1,165 @@
+@@ -0,0 +1,166 @@
 +//===---- LoongArchCCState.cpp - CCState with LoongArch specific extensions ---------===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +
@@ -5524,15 +5374,16 @@ index 000000000000..18996f1e2307
 +}
 diff --git a/llvm/lib/Target/LoongArch/LoongArchCCState.h b/llvm/lib/Target/LoongArch/LoongArchCCState.h
 new file mode 100644
-index 000000000000..56d5b89b1ca9
+index 0000000000000..71c8823f14c65
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/LoongArchCCState.h
-@@ -0,0 +1,165 @@
+@@ -0,0 +1,166 @@
 +//===---- LoongArchCCState.h - CCState with LoongArch specific extensions -----------===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +
@@ -5695,15 +5546,16 @@ index 000000000000..56d5b89b1ca9
 +#endif
 diff --git a/llvm/lib/Target/LoongArch/LoongArchCallingConv.td b/llvm/lib/Target/LoongArch/LoongArchCallingConv.td
 new file mode 100644
-index 000000000000..f5e902a87ace
+index 0000000000000..a18a3ac37ce1f
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/LoongArchCallingConv.td
-@@ -0,0 +1,312 @@
+@@ -0,0 +1,313 @@
 +//===-- LoongArchCallingConv.td - Calling Conventions for LoongArch --*- tablegen -*-===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +// This describes the calling conventions for LoongArch architecture.
@@ -6013,15 +5865,16 @@ index 000000000000..f5e902a87ace
 +                                   (sequence "S%u_64", 8, 0))>;
 diff --git a/llvm/lib/Target/LoongArch/LoongArchExpandPseudo.cpp b/llvm/lib/Target/LoongArch/LoongArchExpandPseudo.cpp
 new file mode 100644
-index 000000000000..d0f656ac4d86
+index 0000000000000..8823aacf0cb07
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/LoongArchExpandPseudo.cpp
 @@ -0,0 +1,1157 @@
 +//===-- LoongArchExpandPseudoInsts.cpp - Expand pseudo instructions ------------===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++// The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +//
@@ -6936,7 +6789,6 @@ index 000000000000..d0f656ac4d86
 +bool LoongArchExpandPseudo::expandPseudoTailCall(
 +    MachineBasicBlock &BB, MachineBasicBlock::iterator I) {
 +
-+  MachineFunction *MF = BB.getParent();
 +  MachineInstr &MI = *I;
 +  DebugLoc DL = MI.getDebugLoc();
 +
@@ -7176,15 +7028,16 @@ index 000000000000..d0f656ac4d86
 +}
 diff --git a/llvm/lib/Target/LoongArch/LoongArchFrameLowering.cpp b/llvm/lib/Target/LoongArch/LoongArchFrameLowering.cpp
 new file mode 100644
-index 000000000000..174df486e95b
+index 0000000000000..16e7798c0fcb2
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/LoongArchFrameLowering.cpp
 @@ -0,0 +1,471 @@
 +//===-- LoongArchFrameLowering.cpp - LoongArch Frame Information --------------------===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +//
@@ -7489,7 +7342,6 @@ index 000000000000..174df486e95b
 +LoongArchFrameLowering::getFrameIndexReference(const MachineFunction &MF,
 +                                               int FI,
 +                                               Register &FrameReg) const {
-+  StackOffset Offset;
 +  const MachineFrameInfo &MFI = MF.getFrameInfo();
 +  LoongArchABIInfo ABI = STI.getABI();
 +
@@ -7498,9 +7350,9 @@ index 000000000000..174df486e95b
 +  else
 +    FrameReg = hasBP(MF) ? ABI.GetBasePtr() : ABI.GetStackPtr();
 +
-+  Offset = StackOffset::getFixed(MFI.getObjectOffset(FI) + MFI.getStackSize() - getOffsetOfLocalArea()
-+  	+ MFI.getOffsetAdjustment());
-+  return Offset;
++  return StackOffset::getFixed(MFI.getObjectOffset(FI) +
++                               MFI.getStackSize() - getOffsetOfLocalArea() +
++                               MFI.getOffsetAdjustment());
 +}
 +
 +bool LoongArchFrameLowering::spillCalleeSavedRegisters(
@@ -7653,15 +7505,16 @@ index 000000000000..174df486e95b
 +}
 diff --git a/llvm/lib/Target/LoongArch/LoongArchFrameLowering.h b/llvm/lib/Target/LoongArch/LoongArchFrameLowering.h
 new file mode 100644
-index 000000000000..99c1c79a2a7e
+index 0000000000000..ae69c983337bf
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/LoongArchFrameLowering.h
-@@ -0,0 +1,67 @@
+@@ -0,0 +1,71 @@
 +//===-- LoongArchFrameLowering.h - Define frame lowering for LoongArch ----*- C++ -*-===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +//
@@ -7706,7 +7559,10 @@ index 000000000000..99c1c79a2a7e
 +
 +  bool hasBP(const MachineFunction &MF) const;
 +
-+  bool isFPCloseToIncomingSP() const  { return false; }
++  bool allocateScavengingFrameIndexesNearIncomingSP(
++    const MachineFunction &MF) const override {
++    return false;
++  }
 +
 +  bool enableShrinkWrapping(const MachineFunction &MF) const override {
 +    return true;
@@ -7726,15 +7582,16 @@ index 000000000000..99c1c79a2a7e
 +#endif
 diff --git a/llvm/lib/Target/LoongArch/LoongArchISelDAGToDAG.cpp b/llvm/lib/Target/LoongArch/LoongArchISelDAGToDAG.cpp
 new file mode 100644
-index 000000000000..e92b08b3e724
+index 0000000000000..d7e3eba0e662f
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/LoongArchISelDAGToDAG.cpp
-@@ -0,0 +1,379 @@
+@@ -0,0 +1,380 @@
 +//===-- LoongArchISelDAGToDAG.cpp - A Dag to Dag Inst Selector for LoongArch --------===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +//
@@ -8111,15 +7968,16 @@ index 000000000000..e92b08b3e724
 +}
 diff --git a/llvm/lib/Target/LoongArch/LoongArchISelDAGToDAG.h b/llvm/lib/Target/LoongArch/LoongArchISelDAGToDAG.h
 new file mode 100644
-index 000000000000..9309c2569240
+index 0000000000000..8135b838c4568
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/LoongArchISelDAGToDAG.h
-@@ -0,0 +1,147 @@
+@@ -0,0 +1,148 @@
 +//===---- LoongArchISelDAGToDAG.h - A Dag to Dag Inst Selector for LoongArch --------===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +//
@@ -8264,15 +8122,16 @@ index 000000000000..9309c2569240
 +#endif
 diff --git a/llvm/lib/Target/LoongArch/LoongArchISelLowering.cpp b/llvm/lib/Target/LoongArch/LoongArchISelLowering.cpp
 new file mode 100644
-index 000000000000..fb3c578ff99c
+index 0000000000000..c63420583f6b6
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/LoongArchISelLowering.cpp
 @@ -0,0 +1,3897 @@
 +//===- LoongArchISelLowering.cpp - LoongArch DAG Lowering Implementation ------------===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +//
@@ -8704,7 +8563,7 @@ index 000000000000..fb3c578ff99c
 +
 +bool
 +LoongArchTargetLowering::allowsMisalignedMemoryAccesses(
-+    EVT VT, unsigned, unsigned, MachineMemOperand::Flags, bool *Fast) const {
++    EVT VT, unsigned, Align, MachineMemOperand::Flags, bool *Fast) const {
 +  if (Fast)
 +    *Fast = true;
 +  return true;
@@ -10520,7 +10379,6 @@ index 000000000000..fb3c578ff99c
 +    const CCState &CCInfo, CallLoweringInfo &CLI, MachineFunction &MF,
 +    unsigned NextStackOffset, const LoongArchFunctionInfo &FI) const {
 +
-+  auto &Callee = CLI.Callee;
 +  auto CalleeCC = CLI.CallConv;
 +  auto IsVarArg = CLI.IsVarArg;
 +  auto &Outs = CLI.Outs;
@@ -12167,15 +12025,16 @@ index 000000000000..fb3c578ff99c
 +}
 diff --git a/llvm/lib/Target/LoongArch/LoongArchISelLowering.h b/llvm/lib/Target/LoongArch/LoongArchISelLowering.h
 new file mode 100644
-index 000000000000..b887d57ac97a
+index 0000000000000..d02ef3f58cfb6
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/LoongArchISelLowering.h
-@@ -0,0 +1,435 @@
+@@ -0,0 +1,428 @@
 +//===- LoongArchISelLowering.h - LoongArch DAG Lowering Interface ---------*- C++ -*-===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +//
@@ -12283,9 +12142,9 @@ index 000000000000..b887d57ac97a
 +                                const LoongArchSubtarget &STI);
 +
 +    bool allowsMisalignedMemoryAccesses(
-+        EVT VT, unsigned AS = 0, unsigned Align = 1,
-+        MachineMemOperand::Flags Flags = MachineMemOperand::MONone,
-+        bool *Fast = nullptr) const;
++        EVT VT, unsigned AS, Align A,
++        MachineMemOperand::Flags Flags,
++        bool *Fast) const override;
 +
 +    MVT getScalarShiftAmountTy(const DataLayout &, EVT) const override {
 +      return MVT::i32;
@@ -12299,7 +12158,7 @@ index 000000000000..b887d57ac97a
 +
 +    /// Return the correct alignment for the current calling convention.
 +    Align getABIAlignmentForCallingConv(Type *ArgTy,
-+                                        DataLayout DL) const {
++                                        const DataLayout &DL) const override {
 +      const Align ABIAlign = DL.getABITypeAlign(ArgTy);
 +      if (ArgTy->isVectorTy())
 +        return std::min(ABIAlign, Align(8));
@@ -12366,14 +12225,6 @@ index 000000000000..b887d57ac97a
 +    Register
 +    getExceptionSelectorRegister(const Constant *PersonalityFn) const override {
 +      return ABI.IsLP64D() ? LoongArch::A1_64 : LoongArch::A1;
-+    }
-+
-+    /// Returns true if a cast between SrcAS and DestAS is a noop.
-+    bool isNoopAddrSpaceCast(unsigned SrcAS, unsigned DestAS) const {
-+      // Mips doesn't have any special address spaces so we just reserve
-+      // the first 256 for software use (e.g. OpenCL) and treat casts
-+      // between them as noops.
-+      return SrcAS < 256 && DestAS < 256;
 +    }
 +
 +    bool isJumpTableRelative() const override {
@@ -12608,15 +12459,16 @@ index 000000000000..b887d57ac97a
 +#endif // LLVM_LIB_TARGET_LOONGARCH_LOONGARCHISELLOWERING_H
 diff --git a/llvm/lib/Target/LoongArch/LoongArchInstrFormats.td b/llvm/lib/Target/LoongArch/LoongArchInstrFormats.td
 new file mode 100644
-index 000000000000..d75d5198bde1
+index 0000000000000..11f3a248d85d8
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/LoongArchInstrFormats.td
-@@ -0,0 +1,790 @@
+@@ -0,0 +1,791 @@
 +//===-- LoongArchInstrFormats.td - LoongArch Instruction Formats -----*- tablegen -*-===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +
@@ -13404,15 +13256,16 @@ index 000000000000..d75d5198bde1
 +
 diff --git a/llvm/lib/Target/LoongArch/LoongArchInstrInfo.cpp b/llvm/lib/Target/LoongArch/LoongArchInstrInfo.cpp
 new file mode 100644
-index 000000000000..b56a8d594a8f
+index 0000000000000..4345203eb252a
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/LoongArchInstrInfo.cpp
 @@ -0,0 +1,990 @@
 +//===- LoongArchInstrInfo.cpp - LoongArch Instruction Information -------------------===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +//
@@ -13980,11 +13833,10 @@ index 000000000000..b56a8d594a8f
 +  return 1;
 +}
 +
-+unsigned LoongArchInstrInfo::insertIndirectBranch(MachineBasicBlock &MBB,
-+                                                  MachineBasicBlock &DestBB,
-+                                                  const DebugLoc &DL,
-+                                                  int64_t BrOffset,
-+                                                  RegScavenger *RS) const {
++void LoongArchInstrInfo::insertIndirectBranch(
++    MachineBasicBlock &MBB, MachineBasicBlock &DestBB,
++    MachineBasicBlock &RestoreBB, const DebugLoc &DL, int64_t BrOffset,
++    RegScavenger *RS) const {
 +  assert(RS && "RegScavenger required for long branching");
 +  assert(MBB.empty() &&
 +         "new block should be inserted for expanding unconditional branch");
@@ -14016,13 +13868,13 @@ index 000000000000..b56a8d594a8f
 +      .addReg(ScratchReg, RegState::Kill)
 +      .addImm(0);
 +  RS->enterBasicBlockEnd(MBB);
-+  unsigned Scav = RS->scavengeRegisterBackwards(
++  Register Scav = RS->scavengeRegisterBackwards(
 +      *RC, MachineBasicBlock::iterator(Pcaddu12iMI), false, 0);
++  // TODO: needs special handling
++  assert(Scav != LoongArch::NoRegister && "No register is scavenged!");
 +  MRI.replaceRegWith(ScratchReg, Scav);
 +  MRI.clearVirtRegs();
 +  RS->setRegUsed(Scav);
-+
-+  return 12;
 +}
 +
 +unsigned LoongArchInstrInfo::removeBranch(MachineBasicBlock &MBB,
@@ -14400,15 +14252,16 @@ index 000000000000..b56a8d594a8f
 +}
 diff --git a/llvm/lib/Target/LoongArch/LoongArchInstrInfo.h b/llvm/lib/Target/LoongArch/LoongArchInstrInfo.h
 new file mode 100644
-index 000000000000..067efb6a9f60
+index 0000000000000..d5174e479933a
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/LoongArchInstrInfo.h
-@@ -0,0 +1,244 @@
+@@ -0,0 +1,246 @@
 +//===- LoongArchInstrInfo.h - LoongArch Instruction Information -----------*- C++ -*-===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +//
@@ -14495,10 +14348,11 @@ index 000000000000..067efb6a9f60
 +                        const DebugLoc &DL,
 +                        int *BytesAdded = nullptr) const override;
 +
-+  unsigned insertIndirectBranch(MachineBasicBlock &MBB,
-+                                MachineBasicBlock &NewDestBB,
-+                                const DebugLoc &DL, int64_t BrOffset,
-+                                RegScavenger *RS = nullptr) const;
++  void insertIndirectBranch(MachineBasicBlock &MBB,
++                            MachineBasicBlock &NewDestBB,
++                            MachineBasicBlock &RestoreBB,
++                            const DebugLoc &DL, int64_t BrOffset = 0,
++                            RegScavenger *RS = nullptr) const override;
 +  bool
 +  reverseBranchCondition(SmallVectorImpl<MachineOperand> &Cond) const override;
 +
@@ -14650,15 +14504,16 @@ index 000000000000..067efb6a9f60
 +#endif // LLVM_LIB_TARGET_LOONGARCH_LOONGARCHINSTRINFO_H
 diff --git a/llvm/lib/Target/LoongArch/LoongArchInstrInfo.td b/llvm/lib/Target/LoongArch/LoongArchInstrInfo.td
 new file mode 100644
-index 000000000000..50ba8c91dcb0
+index 0000000000000..fcac35c740a1c
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/LoongArchInstrInfo.td
-@@ -0,0 +1,1826 @@
+@@ -0,0 +1,1827 @@
 +//===- LoongArchInstrInfo.td - Target Description for LoongArch Target -*- tablegen -*-=//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +//
@@ -15255,7 +15110,7 @@ index 000000000000..50ba8c91dcb0
 +               !strconcat(opstr, "\t$rd, $rk, $addr"),
 +               [(set RD:$rd, (OpNode RD:$rk, Addr:$addr))],
 +               FrmR, opstr> {
-+    let DecoderMethod = "DecodeMem";
++    let DecoderMethod = "DecodeMemForAtomicOp";
 +    let canFoldAsLoad = 1;
 +    string BaseOpcode = opstr;
 +    let mayLoad = 1;
@@ -16482,15 +16337,16 @@ index 000000000000..50ba8c91dcb0
 +                   (SLTUI_64 GPR64:$rj, (i64 1))>;
 diff --git a/llvm/lib/Target/LoongArch/LoongArchInstrInfoF.td b/llvm/lib/Target/LoongArch/LoongArchInstrInfoF.td
 new file mode 100644
-index 000000000000..2524db7dae13
+index 0000000000000..6b513a853c89c
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/LoongArchInstrInfoF.td
-@@ -0,0 +1,627 @@
+@@ -0,0 +1,628 @@
 +//===- LoongArchInstrInfoF.td - Target Description for LoongArch Target -*- tablegen -*-=//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +//
@@ -17115,15 +16971,16 @@ index 000000000000..2524db7dae13
 +                   (MOVFR2GR_DS FGR32Opnd:$src)>;
 diff --git a/llvm/lib/Target/LoongArch/LoongArchMCInstLower.cpp b/llvm/lib/Target/LoongArch/LoongArchMCInstLower.cpp
 new file mode 100644
-index 000000000000..bf70b09d42c7
+index 0000000000000..244775e9b37f7
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/LoongArchMCInstLower.cpp
-@@ -0,0 +1,342 @@
+@@ -0,0 +1,343 @@
 +//===- LoongArchMCInstLower.cpp - Convert LoongArch MachineInstr to MCInst ----------===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +//
@@ -17463,15 +17320,16 @@ index 000000000000..bf70b09d42c7
 +}
 diff --git a/llvm/lib/Target/LoongArch/LoongArchMCInstLower.h b/llvm/lib/Target/LoongArch/LoongArchMCInstLower.h
 new file mode 100644
-index 000000000000..6463a7b64fb0
+index 0000000000000..2c612f73390ea
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/LoongArchMCInstLower.h
-@@ -0,0 +1,55 @@
+@@ -0,0 +1,56 @@
 +//===- LoongArchMCInstLower.h - Lower MachineInstr to MCInst --------*- C++ -*--===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +
@@ -17524,15 +17382,16 @@ index 000000000000..6463a7b64fb0
 +#endif // LLVM_LIB_TARGET_LOONGARCH_LOONGARCHMCINSTLOWER_H
 diff --git a/llvm/lib/Target/LoongArch/LoongArchMachineFunction.cpp b/llvm/lib/Target/LoongArch/LoongArchMachineFunction.cpp
 new file mode 100644
-index 000000000000..c7f95b4555d2
+index 0000000000000..fbb7fbd3fb2ab
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/LoongArchMachineFunction.cpp
-@@ -0,0 +1,49 @@
+@@ -0,0 +1,50 @@
 +//===-- LoongArchMachineFunctionInfo.cpp - Private data used for LoongArch ----------===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +
@@ -17579,15 +17438,16 @@ index 000000000000..c7f95b4555d2
 +void LoongArchFunctionInfo::anchor() {}
 diff --git a/llvm/lib/Target/LoongArch/LoongArchMachineFunction.h b/llvm/lib/Target/LoongArch/LoongArchMachineFunction.h
 new file mode 100644
-index 000000000000..549e7b4053d4
+index 0000000000000..5d22d6b32b7bd
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/LoongArchMachineFunction.h
-@@ -0,0 +1,94 @@
+@@ -0,0 +1,95 @@
 +//===- LoongArchMachineFunctionInfo.h - Private data used for LoongArch ---*- C++ -*-===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +//
@@ -17679,10 +17539,10 @@ index 000000000000..549e7b4053d4
 +#endif // LLVM_LIB_TARGET_LOONGARCH_LOONGARCHMACHINEFUNCTION_H
 diff --git a/llvm/lib/Target/LoongArch/LoongArchModuleISelDAGToDAG.cpp b/llvm/lib/Target/LoongArch/LoongArchModuleISelDAGToDAG.cpp
 new file mode 100644
-index 000000000000..ef039aaad370
+index 0000000000000..8dbf30f2143e8
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/LoongArchModuleISelDAGToDAG.cpp
-@@ -0,0 +1,55 @@
+@@ -0,0 +1,53 @@
 +//===----------------------------------------------------------------------===//
 +// Instruction Selector Subtarget Control
 +//===----------------------------------------------------------------------===//
@@ -17730,8 +17590,6 @@ index 000000000000..ef039aaad370
 +
 +bool LoongArchModuleDAGToDAGISel::runOnMachineFunction(MachineFunction &MF) {
 +  LLVM_DEBUG(errs() << "In LoongArchModuleDAGToDAGISel::runMachineFunction\n");
-+  auto &TPC = getAnalysis<TargetPassConfig>();
-+  auto &TM = TPC.getTM<LoongArchTargetMachine>();
 +  return false;
 +}
 +
@@ -17740,15 +17598,16 @@ index 000000000000..ef039aaad370
 +}
 diff --git a/llvm/lib/Target/LoongArch/LoongArchRegisterInfo.cpp b/llvm/lib/Target/LoongArch/LoongArchRegisterInfo.cpp
 new file mode 100644
-index 000000000000..c32fc39126c3
+index 0000000000000..38e97bd8ac6e0
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/LoongArchRegisterInfo.cpp
-@@ -0,0 +1,404 @@
+@@ -0,0 +1,405 @@
 +//===- LoongArchRegisterInfo.cpp - LoongArch Register Information -------------------===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +//
@@ -18150,15 +18009,16 @@ index 000000000000..c32fc39126c3
 +}
 diff --git a/llvm/lib/Target/LoongArch/LoongArchRegisterInfo.h b/llvm/lib/Target/LoongArch/LoongArchRegisterInfo.h
 new file mode 100644
-index 000000000000..dd3be916a73c
+index 0000000000000..760bee5d7d47a
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/LoongArchRegisterInfo.h
-@@ -0,0 +1,80 @@
+@@ -0,0 +1,81 @@
 +//===- LoongArchRegisterInfo.h - LoongArch Register Information Impl ------*- C++ -*-===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +//
@@ -18236,15 +18096,16 @@ index 000000000000..dd3be916a73c
 +#endif // LLVM_LIB_TARGET_LOONGARCH_LOONGARCHREGISTERINFO_H
 diff --git a/llvm/lib/Target/LoongArch/LoongArchRegisterInfo.td b/llvm/lib/Target/LoongArch/LoongArchRegisterInfo.td
 new file mode 100644
-index 000000000000..ba72cfa4019c
+index 0000000000000..2052f85c3bb74
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/LoongArchRegisterInfo.td
-@@ -0,0 +1,285 @@
+@@ -0,0 +1,286 @@
 +//===-- LoongArchRegisterInfo.td - LoongArch Register defs -----------*- tablegen -*-===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +
@@ -18527,15 +18388,16 @@ index 000000000000..ba72cfa4019c
 +}
 diff --git a/llvm/lib/Target/LoongArch/LoongArchSubtarget.cpp b/llvm/lib/Target/LoongArch/LoongArchSubtarget.cpp
 new file mode 100644
-index 000000000000..8ea21257cb77
+index 0000000000000..d8054c75689be
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/LoongArchSubtarget.cpp
-@@ -0,0 +1,105 @@
+@@ -0,0 +1,110 @@
 +//===-- LoongArchSubtarget.cpp - LoongArch Subtarget Information --------------------===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +//
@@ -18550,9 +18412,9 @@ index 000000000000..8ea21257cb77
 +#include "LoongArchTargetMachine.h"
 +#include "llvm/IR/Attributes.h"
 +#include "llvm/IR/Function.h"
++#include "llvm/MC/TargetRegistry.h"
 +#include "llvm/Support/CommandLine.h"
 +#include "llvm/Support/Debug.h"
-+#include "llvm/MC/TargetRegistry.h"
 +#include "llvm/Support/raw_ostream.h"
 +
 +using namespace llvm;
@@ -18569,11 +18431,13 @@ index 000000000000..8ea21257cb77
 +                                       StringRef TuneCPU, StringRef FS,
 +                                       const LoongArchTargetMachine &TM,
 +                                       MaybeAlign StackAlignOverride)
-+    : LoongArchGenSubtargetInfo(TT, CPU, TuneCPU, FS), HasLA64(false),
-+      HasBasicF(false), HasBasicD(false),
-+      StackAlignOverride(StackAlignOverride), TM(TM), TargetTriple(TT),
-+      TSInfo(), InstrInfo(initializeSubtargetDependencies(CPU,TuneCPU, FS, TM)),
-+      FrameLowering(*this), TLInfo(TM, *this) {
++    : LoongArchGenSubtargetInfo(TT, CPU, CPU, FS),
++      HasLA64(false), HasBasicF(false), HasBasicD(false),
++      StackAlignOverride(StackAlignOverride),
++      TM(TM), TargetTriple(TT), TSInfo(),
++      InstrInfo(initializeSubtargetDependencies(CPU, TuneCPU, FS, TM)),
++      FrameLowering(*this),
++      TLInfo(TM, *this) {
 +
 +  // Check if Architecture and ABI are compatible.
 +  assert(((!is64Bit() && isABI_ILP32()) || (is64Bit() && isABI_LP64())) &&
@@ -18598,8 +18462,10 @@ index 000000000000..8ea21257cb77
 +}
 +
 +LoongArchSubtarget &
-+LoongArchSubtarget::initializeSubtargetDependencies(StringRef CPU,StringRef TuneCPU, StringRef FS,
-+                                               const TargetMachine &TM) {
++LoongArchSubtarget::initializeSubtargetDependencies(StringRef CPU,
++                                                    StringRef TuneCPU,
++                                                    StringRef FS,
++                                                    const TargetMachine &TM) {
 +  StringRef CPUName = LoongArch_MC::selectLoongArchCPU(TM.getTargetTriple(), CPU);
 +
 +  // Parse features string.
@@ -18638,15 +18504,16 @@ index 000000000000..8ea21257cb77
 +const LoongArchABIInfo &LoongArchSubtarget::getABI() const { return TM.getABI(); }
 diff --git a/llvm/lib/Target/LoongArch/LoongArchSubtarget.h b/llvm/lib/Target/LoongArch/LoongArchSubtarget.h
 new file mode 100644
-index 000000000000..3eeee27b0d1c
+index 0000000000000..e138ed910713d
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/LoongArchSubtarget.h
-@@ -0,0 +1,131 @@
+@@ -0,0 +1,135 @@
 +//===-- LoongArchSubtarget.h - Define Subtarget for the LoongArch ---------*- C++ -*-===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +//
@@ -18727,8 +18594,9 @@ index 000000000000..3eeee27b0d1c
 +
 +  /// This constructor initializes the data members to match that
 +  /// of the specified triple.
-+  LoongArchSubtarget(const Triple &TT, StringRef CPU, StringRef TuneCPU, StringRef FS,
-+      const LoongArchTargetMachine &TM, MaybeAlign StackAlignOverride);
++  LoongArchSubtarget(const Triple &TT, StringRef CPU, StringRef TuneCPU,
++                     StringRef FS, const LoongArchTargetMachine &TM,
++                     MaybeAlign StackAlignOverride);
 +
 +  /// ParseSubtargetFeatures - Parses features string setting specified
 +  /// subtarget options.  Definition of function is auto generated by tblgen.
@@ -18748,8 +18616,10 @@ index 000000000000..3eeee27b0d1c
 +  // Grab relocation model
 +  Reloc::Model getRelocationModel() const;
 +
-+  LoongArchSubtarget &initializeSubtargetDependencies(StringRef CPU, StringRef TuneCPU, StringRef FS,
-+                                                 const TargetMachine &TM);
++  LoongArchSubtarget &initializeSubtargetDependencies(StringRef CPU,
++                                                      StringRef TuneCPU,
++                                                      StringRef FS,
++                                                      const TargetMachine &TM);
 +
 +  const SelectionDAGTargetInfo *getSelectionDAGInfo() const override {
 +    return &TSInfo;
@@ -18775,15 +18645,16 @@ index 000000000000..3eeee27b0d1c
 +#endif
 diff --git a/llvm/lib/Target/LoongArch/LoongArchTargetMachine.cpp b/llvm/lib/Target/LoongArch/LoongArchTargetMachine.cpp
 new file mode 100644
-index 000000000000..09d0e73fd214
+index 0000000000000..9a11c4caf97ed
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/LoongArchTargetMachine.cpp
-@@ -0,0 +1,185 @@
+@@ -0,0 +1,192 @@
 +//===-- LoongArchTargetMachine.cpp - Define TargetMachine for LoongArch -------------===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +//
@@ -18808,9 +18679,9 @@ index 000000000000..09d0e73fd214
 +#include "llvm/CodeGen/TargetPassConfig.h"
 +#include "llvm/IR/Attributes.h"
 +#include "llvm/IR/Function.h"
++#include "llvm/MC/TargetRegistry.h"
 +#include "llvm/Support/CodeGen.h"
 +#include "llvm/Support/Debug.h"
-+#include "llvm/MC/TargetRegistry.h"
 +#include "llvm/Support/raw_ostream.h"
 +#include "llvm/Target/TargetOptions.h"
 +#include <string>
@@ -18890,12 +18761,16 @@ index 000000000000..09d0e73fd214
 +LoongArchTargetMachine::getSubtargetImpl(const Function &F) const {
 +  Attribute CPUAttr = F.getFnAttribute("target-cpu");
 +  Attribute FSAttr = F.getFnAttribute("target-features");
++  Attribute TuneAttr = F.getFnAttribute("tune-cpu");
 +
-+  std::string CPU = !CPUAttr.hasAttribute(Attribute::None)
-+                        ? CPUAttr.getValueAsString().str()
++  std::string CPU =
++      CPUAttr.isValid() ? CPUAttr.getValueAsString().str()
 +                        : TargetCPU;
-+  std::string FS = !FSAttr.hasAttribute(Attribute::None)
-+                       ? FSAttr.getValueAsString().str()
++  std::string TuneCPU =
++      TuneAttr.isValid() ? CPUAttr.getValueAsString().str()
++                         : CPU;
++  std::string FS =
++      FSAttr.isValid() ? FSAttr.getValueAsString().str()
 +                       : TargetFS;
 +
 +  auto &I = SubtargetMap[CPU + FS];
@@ -18904,7 +18779,9 @@ index 000000000000..09d0e73fd214
 +    // creation will depend on the TM and the code generation flags on the
 +    // function that reside in TargetOptions.
 +    resetTargetOptions(F);
-+    I = std::make_unique<LoongArchSubtarget>(TargetTriple, CPU,CPU, FS, *this,
++
++    I = std::make_unique<LoongArchSubtarget>(
++        TargetTriple, CPU, TuneCPU, FS, *this,
 +        MaybeAlign(F.getParent()->getOverrideStackAlignment()));
 +  }
 +  return I.get();
@@ -18966,15 +18843,16 @@ index 000000000000..09d0e73fd214
 +}
 diff --git a/llvm/lib/Target/LoongArch/LoongArchTargetMachine.h b/llvm/lib/Target/LoongArch/LoongArchTargetMachine.h
 new file mode 100644
-index 000000000000..f412e25b3d30
+index 0000000000000..0d75e92f76942
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/LoongArchTargetMachine.h
-@@ -0,0 +1,60 @@
+@@ -0,0 +1,69 @@
 +//===- LoongArchTargetMachine.h - Define TargetMachine for LoongArch ------*- C++ -*-===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +//
@@ -19025,6 +18903,14 @@ index 000000000000..f412e25b3d30
 +  bool isMachineVerifierClean() const override {
 +    return false;
 +  }
++
++  /// Returns true if a cast between SrcAS and DestAS is a noop.
++  bool isNoopAddrSpaceCast(unsigned SrcAS, unsigned DestAS) const override {
++      // Mips doesn't have any special address spaces so we just reserve
++      // the first 256 for software use (e.g. OpenCL) and treat casts
++      // between them as noops.
++      return SrcAS < 256 && DestAS < 256;
++  }
 +};
 +
 +} // end namespace llvm
@@ -19032,15 +18918,16 @@ index 000000000000..f412e25b3d30
 +#endif // LLVM_LIB_TARGET_LOONGARCH_LOONGARCHTARGETMACHINE_H
 diff --git a/llvm/lib/Target/LoongArch/LoongArchTargetObjectFile.cpp b/llvm/lib/Target/LoongArch/LoongArchTargetObjectFile.cpp
 new file mode 100644
-index 000000000000..9c6250d28930
+index 0000000000000..1b90937bc1d06
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/LoongArchTargetObjectFile.cpp
-@@ -0,0 +1,26 @@
+@@ -0,0 +1,27 @@
 +//===-- LoongArchTargetObjectFile.cpp - LoongArch Object Files ----------------------===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +
@@ -19064,15 +18951,16 @@ index 000000000000..9c6250d28930
 +}
 diff --git a/llvm/lib/Target/LoongArch/LoongArchTargetObjectFile.h b/llvm/lib/Target/LoongArch/LoongArchTargetObjectFile.h
 new file mode 100644
-index 000000000000..a50c57171f80
+index 0000000000000..5c3e7ffc873d3
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/LoongArchTargetObjectFile.h
-@@ -0,0 +1,24 @@
+@@ -0,0 +1,25 @@
 +//===-- llvm/Target/LoongArchTargetObjectFile.h - LoongArch Object Info ---*- C++ -*-===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +
@@ -19094,15 +18982,16 @@ index 000000000000..a50c57171f80
 +#endif
 diff --git a/llvm/lib/Target/LoongArch/LoongArchTargetStreamer.h b/llvm/lib/Target/LoongArch/LoongArchTargetStreamer.h
 new file mode 100644
-index 000000000000..1de2a5e51e05
+index 0000000000000..6761d43263bfd
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/LoongArchTargetStreamer.h
-@@ -0,0 +1,130 @@
+@@ -0,0 +1,131 @@
 +//===-- LoongArchTargetStreamer.h - LoongArch Target Streamer ------------*- C++ -*--===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +
@@ -19230,10 +19119,10 @@ index 000000000000..1de2a5e51e05
 +#endif
 diff --git a/llvm/lib/Target/LoongArch/MCTargetDesc/CMakeLists.txt b/llvm/lib/Target/LoongArch/MCTargetDesc/CMakeLists.txt
 new file mode 100644
-index 000000000000..35b41ef0684d
+index 0000000000000..7990699806483
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/MCTargetDesc/CMakeLists.txt
-@@ -0,0 +1,21 @@
+@@ -0,0 +1,15 @@
 +add_llvm_component_library(LLVMLoongArchDesc
 +  LoongArchABIInfo.cpp
 +  LoongArchAsmBackend.cpp
@@ -19246,54 +19135,21 @@ index 000000000000..35b41ef0684d
 +  LoongArchMCTargetDesc.cpp
 +  LoongArchTargetStreamer.cpp
 +
-+  LINK_COMPONENTS
-+  MC
-+  LoongArchInfo
-+  Support
-+
 +  ADD_TO_COMPONENT
 +  LoongArch
-+
 +  )
-diff --git a/llvm/lib/Target/LoongArch/MCTargetDesc/LLVMBuild.txt b/llvm/lib/Target/LoongArch/MCTargetDesc/LLVMBuild.txt
-new file mode 100644
-index 000000000000..6f0019bbbb36
---- /dev/null
-+++ b/llvm/lib/Target/LoongArch/MCTargetDesc/LLVMBuild.txt
-@@ -0,0 +1,22 @@
-+;===- ./lib/Target/LoongArch/MCTargetDesc/LLVMBuild.txt -------------*- Conf -*--===;
-+;
-+; Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+; See https://llvm.org/LICENSE.txt for license information.
-+; SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-+;
-+;===------------------------------------------------------------------------===;
-+;
-+; This is an LLVMBuild description file for the components in this subdirectory.
-+;
-+; For more information on the LLVMBuild system, please see:
-+;
-+;   http://llvm.org/docs/LLVMBuild.html
-+;
-+;===------------------------------------------------------------------------===;
-+
-+[component_0]
-+type = Library
-+name = LoongArchDesc
-+parent = LoongArch
-+required_libraries = MC LoongArchInfo Support
-+add_to_library_groups = LoongArch
 diff --git a/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchABIInfo.cpp b/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchABIInfo.cpp
 new file mode 100644
-index 000000000000..5e70e64e5903
+index 0000000000000..9fc870485d0bd
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchABIInfo.cpp
-@@ -0,0 +1,122 @@
+@@ -0,0 +1,123 @@
 +//===---- LoongArchABIInfo.cpp - Information about LoongArch ABI's ------------------===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +
@@ -19413,15 +19269,16 @@ index 000000000000..5e70e64e5903
 +
 diff --git a/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchABIInfo.h b/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchABIInfo.h
 new file mode 100644
-index 000000000000..74c30732e3e2
+index 0000000000000..22bffc748997d
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchABIInfo.h
-@@ -0,0 +1,90 @@
+@@ -0,0 +1,91 @@
 +//===---- LoongArchABIInfo.h - Information about LoongArch ABI's --------------------===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +
@@ -19509,15 +19366,16 @@ index 000000000000..74c30732e3e2
 +#endif
 diff --git a/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchAsmBackend.cpp b/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchAsmBackend.cpp
 new file mode 100644
-index 000000000000..b0b6f0508468
+index 0000000000000..d5b62326ca422
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchAsmBackend.cpp
 @@ -0,0 +1,233 @@
 +//===-- LoongArchAsmBackend.cpp - LoongArch Asm Backend  ----------------------------===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +//
@@ -19693,7 +19551,8 @@ index 000000000000..b0b6f0508468
 +/// it should return an error.
 +///
 +/// \return - True on success.
-+bool LoongArchAsmBackend::writeNopData(raw_ostream &OS, uint64_t Count, const MCSubtargetInfo *STI) const {
++bool LoongArchAsmBackend::writeNopData(raw_ostream &OS, uint64_t Count,
++                                       const MCSubtargetInfo *STI) const {
 +  // Check for a less than instruction size number of bytes
 +  if ((Count % 4) != 0)
 +    return false;
@@ -19742,21 +19601,20 @@ index 000000000000..b0b6f0508468
 +                                              const MCSubtargetInfo &STI,
 +                                              const MCRegisterInfo &MRI,
 +                                              const MCTargetOptions &Options) {
-+  LoongArchABIInfo ABI = LoongArchABIInfo::computeTargetABI(
-+                           STI.getTargetTriple(), STI.getCPU(), Options);
 +  return new LoongArchAsmBackend(T, MRI, STI.getTargetTriple(), STI.getCPU());
 +}
 diff --git a/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchAsmBackend.h b/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchAsmBackend.h
 new file mode 100644
-index 000000000000..9e9899eb9da7
+index 0000000000000..4d565a3f2759d
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchAsmBackend.h
-@@ -0,0 +1,89 @@
+@@ -0,0 +1,90 @@
 +//===-- LoongArchAsmBackend.h - LoongArch Asm Backend  ------------------------------===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +//
@@ -19831,7 +19689,7 @@ index 000000000000..9e9899eb9da7
 +  /// @}
 +
 +  bool writeNopData(raw_ostream &OS, uint64_t Count,
-+  		const MCSubtargetInfo *STI) const override;
++                    const MCSubtargetInfo *STI) const override;
 +
 +  bool shouldForceRelocation(const MCAssembler &Asm, const MCFixup &Fixup,
 +                             const MCValue &Target) override;
@@ -19843,15 +19701,16 @@ index 000000000000..9e9899eb9da7
 +#endif
 diff --git a/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchBaseInfo.h b/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchBaseInfo.h
 new file mode 100644
-index 000000000000..707333c18fbd
+index 0000000000000..39cb04cd38b5d
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchBaseInfo.h
-@@ -0,0 +1,128 @@
+@@ -0,0 +1,129 @@
 +//===-- LoongArchBaseInfo.h - Top level definitions for LoongArch MC ------*- C++ -*-===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +//
@@ -19977,15 +19836,16 @@ index 000000000000..707333c18fbd
 +#endif
 diff --git a/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchELFObjectWriter.cpp b/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchELFObjectWriter.cpp
 new file mode 100644
-index 000000000000..4e043035b558
+index 0000000000000..854ba0aab3959
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchELFObjectWriter.cpp
-@@ -0,0 +1,186 @@
+@@ -0,0 +1,187 @@
 +//===-- LoongArchELFObjectWriter.cpp - LoongArch ELF Writer -------------------------===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +
@@ -20169,15 +20029,16 @@ index 000000000000..4e043035b558
 +}
 diff --git a/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchELFStreamer.cpp b/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchELFStreamer.cpp
 new file mode 100644
-index 000000000000..3863619a7d91
+index 0000000000000..281fa4252ac0b
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchELFStreamer.cpp
-@@ -0,0 +1,132 @@
+@@ -0,0 +1,141 @@
 +//===-------- LoongArchELFStreamer.cpp - ELF Object Output ---------------------===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +
@@ -20239,15 +20100,23 @@ index 000000000000..3863619a7d91
 +      !A.getName().empty() && !B.getName().empty())
 +    return false;
 +
++  /* On ELF A - B is absolute if A and B are in the same section. */
++  if (A.isInSection() && B.isInSection() &&
++      &A.getSection() == &B.getSection())
++    return false;
++
 +  LHS =
 +      MCBinaryExpr::create(MCBinaryExpr::Add, MCSymbolRefExpr::create(&A, C),
 +                           MCConstantExpr::create(E.getConstant(), C), C);
 +  RHS = E.getSymB();
 +
++  return true;
++/*
 +  return (A.isInSection() ? A.getSection().hasInstructions()
 +                          : !A.getName().empty()) ||
 +         (B.isInSection() ? B.getSection().hasInstructions()
 +                          : !B.getName().empty());
++*/
 +}
 +
 +
@@ -20307,15 +20176,16 @@ index 000000000000..3863619a7d91
 +}
 diff --git a/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchELFStreamer.h b/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchELFStreamer.h
 new file mode 100644
-index 000000000000..875cebcb7400
+index 0000000000000..a726172575580
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchELFStreamer.h
-@@ -0,0 +1,53 @@
+@@ -0,0 +1,54 @@
 +//===- LoongArchELFStreamer.h - ELF Object Output --------------------*- C++ -*-===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +//
@@ -20366,15 +20236,16 @@ index 000000000000..875cebcb7400
 +#endif // LLVM_LIB_TARGET_LOONGARCH_MCTARGETDESC_LOONGARCHELFSTREAMER_H
 diff --git a/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchFixupKinds.h b/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchFixupKinds.h
 new file mode 100644
-index 000000000000..e0e1200d8bad
+index 0000000000000..db2ef31dcef94
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchFixupKinds.h
-@@ -0,0 +1,90 @@
+@@ -0,0 +1,91 @@
 +//===-- LoongArchFixupKinds.h - LoongArch Specific Fixup Entries ----------*- C++ -*-===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +
@@ -20462,15 +20333,16 @@ index 000000000000..e0e1200d8bad
 +#endif
 diff --git a/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchInstPrinter.cpp b/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchInstPrinter.cpp
 new file mode 100644
-index 000000000000..4d096cc4c74f
+index 0000000000000..e88f6953ab253
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchInstPrinter.cpp
-@@ -0,0 +1,245 @@
+@@ -0,0 +1,246 @@
 +//===-- LoongArchInstPrinter.cpp - Convert LoongArch MCInst to assembly syntax ------===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +//
@@ -20713,15 +20585,16 @@ index 000000000000..4d096cc4c74f
 +}
 diff --git a/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchInstPrinter.h b/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchInstPrinter.h
 new file mode 100644
-index 000000000000..22922b4d1c41
+index 0000000000000..e32fe41dbe8ef
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchInstPrinter.h
 @@ -0,0 +1,119 @@
 +//=== LoongArchInstPrinter.h - Convert LoongArch MCInst to assembly syntax -*- C++ -*-==//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +//
@@ -20798,8 +20671,7 @@ index 000000000000..22922b4d1c41
 +    : MCInstPrinter(MAI, MII, MRI) {}
 +
 +  // Autogenerated by tblgen.
-+    std::pair<const char *, uint64_t> getMnemonic(const MCInst *MI) override;
-+
++  std::pair<const char *, uint64_t> getMnemonic(const MCInst *MI) override;
 +  void printInstruction(const MCInst *MI, uint64_t Address, raw_ostream &O);
 +  static const char *getRegisterName(unsigned RegNo);
 +
@@ -20838,15 +20710,16 @@ index 000000000000..22922b4d1c41
 +#endif
 diff --git a/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchMCAsmInfo.cpp b/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchMCAsmInfo.cpp
 new file mode 100644
-index 000000000000..e157d9a7bf52
+index 0000000000000..29a7e6e1323f5
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchMCAsmInfo.cpp
-@@ -0,0 +1,38 @@
+@@ -0,0 +1,39 @@
 +//===-- LoongArchMCAsmInfo.cpp - LoongArch Asm Properties ---------------------------===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +//
@@ -20882,15 +20755,16 @@ index 000000000000..e157d9a7bf52
 +}
 diff --git a/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchMCAsmInfo.h b/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchMCAsmInfo.h
 new file mode 100644
-index 000000000000..244db58dbab9
+index 0000000000000..70b692a3477a7
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchMCAsmInfo.h
-@@ -0,0 +1,31 @@
+@@ -0,0 +1,32 @@
 +//===-- LoongArchMCAsmInfo.h - LoongArch Asm Info ------------------------*- C++ -*--===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +//
@@ -20919,15 +20793,16 @@ index 000000000000..244db58dbab9
 +#endif
 diff --git a/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchMCCodeEmitter.cpp b/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchMCCodeEmitter.cpp
 new file mode 100644
-index 000000000000..e5ec72bc6e8a
+index 0000000000000..44315744268fd
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchMCCodeEmitter.cpp
-@@ -0,0 +1,1420 @@
+@@ -0,0 +1,1419 @@
 +//===-- LoongArchMCCodeEmitter.cpp - Convert LoongArch Code to Machine Code ---------===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +//
@@ -22206,8 +22081,6 @@ index 000000000000..e5ec72bc6e8a
 +    return RegNo;
 +  } else if (MO.isImm()) {
 +    return static_cast<unsigned>(MO.getImm());
-+  } else if (MO.isDFPImm()) {
-+    return bit_cast<double>(MO.getDFPImm());
 +  }
 +  // MO must be an Expr.
 +  assert(MO.isExpr());
@@ -22345,15 +22218,16 @@ index 000000000000..e5ec72bc6e8a
 +#include "LoongArchGenMCCodeEmitter.inc"
 diff --git a/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchMCCodeEmitter.h b/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchMCCodeEmitter.h
 new file mode 100644
-index 000000000000..cb9321640d93
+index 0000000000000..e890115d98089
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchMCCodeEmitter.h
-@@ -0,0 +1,142 @@
+@@ -0,0 +1,143 @@
 +//===- LoongArchMCCodeEmitter.h - Convert LoongArch Code to Machine Code --*- C++ -*-===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +//
@@ -22493,15 +22367,16 @@ index 000000000000..cb9321640d93
 +#endif // LLVM_LIB_TARGET_LOONGARCH_MCTARGETDESC_LOONGARCHMCCODEEMITTER_H
 diff --git a/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchMCExpr.cpp b/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchMCExpr.cpp
 new file mode 100644
-index 000000000000..1af027f15547
+index 0000000000000..37a36edd084ed
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchMCExpr.cpp
-@@ -0,0 +1,158 @@
+@@ -0,0 +1,159 @@
 +//===-- LoongArchMCExpr.cpp - LoongArch specific MC expression classes --------------===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +
@@ -22657,15 +22532,16 @@ index 000000000000..1af027f15547
 +}
 diff --git a/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchMCExpr.h b/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchMCExpr.h
 new file mode 100644
-index 000000000000..7851d478e913
+index 0000000000000..b57e56084c45c
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchMCExpr.h
-@@ -0,0 +1,97 @@
+@@ -0,0 +1,98 @@
 +//===- LoongArchMCExpr.h - LoongArch specific MC expression classes -------*- C++ -*-===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +
@@ -22760,15 +22636,16 @@ index 000000000000..7851d478e913
 +#endif // LLVM_LIB_TARGET_LOONGARCH_MCTARGETDESC_LOONGARCHMCEXPR_H
 diff --git a/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchMCTargetDesc.cpp b/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchMCTargetDesc.cpp
 new file mode 100644
-index 000000000000..f69bb74f8943
+index 0000000000000..644c36ca83f7a
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchMCTargetDesc.cpp
-@@ -0,0 +1,187 @@
+@@ -0,0 +1,188 @@
 +//===-- LoongArchMCTargetDesc.cpp - LoongArch Target Descriptions -------------------===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +//
@@ -22793,9 +22670,9 @@ index 000000000000..f69bb74f8943
 +#include "llvm/MC/MCSubtargetInfo.h"
 +#include "llvm/MC/MCSymbol.h"
 +#include "llvm/MC/MachineLocation.h"
++#include "llvm/MC/TargetRegistry.h"
 +#include "llvm/Support/ErrorHandling.h"
 +#include "llvm/Support/FormattedStream.h"
-+#include "llvm/MC/TargetRegistry.h"
 +
 +using namespace llvm;
 +
@@ -22835,7 +22712,7 @@ index 000000000000..f69bb74f8943
 +static MCSubtargetInfo *createLoongArchMCSubtargetInfo(const Triple &TT,
 +                                                  StringRef CPU, StringRef FS) {
 +  CPU = LoongArch_MC::selectLoongArchCPU(TT, CPU);
-+  return createLoongArchMCSubtargetInfoImpl(TT, CPU,CPU, FS);
++  return createLoongArchMCSubtargetInfoImpl(TT, CPU, CPU, FS);
 +}
 +
 +static MCAsmInfo *createLoongArchMCAsmInfo(const MCRegisterInfo &MRI,
@@ -22953,15 +22830,16 @@ index 000000000000..f69bb74f8943
 +}
 diff --git a/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchMCTargetDesc.h b/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchMCTargetDesc.h
 new file mode 100644
-index 000000000000..56949ef1f7b0
+index 0000000000000..76ed149ac1efb
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchMCTargetDesc.h
-@@ -0,0 +1,68 @@
+@@ -0,0 +1,69 @@
 +//===-- LoongArchMCTargetDesc.h - LoongArch Target Descriptions -----------*- C++ -*-===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +//
@@ -23027,15 +22905,16 @@ index 000000000000..56949ef1f7b0
 +#endif
 diff --git a/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchTargetStreamer.cpp b/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchTargetStreamer.cpp
 new file mode 100644
-index 000000000000..508c255ed12a
+index 0000000000000..66940440424dc
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/MCTargetDesc/LoongArchTargetStreamer.cpp
-@@ -0,0 +1,319 @@
+@@ -0,0 +1,320 @@
 +//===-- LoongArchTargetStreamer.cpp - LoongArch Target Streamer Methods -------------===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +//
@@ -23352,59 +23231,28 @@ index 000000000000..508c255ed12a
 +}
 diff --git a/llvm/lib/Target/LoongArch/TargetInfo/CMakeLists.txt b/llvm/lib/Target/LoongArch/TargetInfo/CMakeLists.txt
 new file mode 100644
-index 000000000000..5d76838eecd8
+index 0000000000000..4a89fd709e750
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/TargetInfo/CMakeLists.txt
-@@ -0,0 +1,10 @@
+@@ -0,0 +1,6 @@
 +add_llvm_component_library(LLVMLoongArchInfo
 +  LoongArchTargetInfo.cpp
 +
-+  LINK_COMPONENTS
-+  Support
-+
 +  ADD_TO_COMPONENT
 +  LoongArch
-+
 +  )
-diff --git a/llvm/lib/Target/LoongArch/TargetInfo/LLVMBuild.txt b/llvm/lib/Target/LoongArch/TargetInfo/LLVMBuild.txt
-new file mode 100644
-index 000000000000..6838e4066052
---- /dev/null
-+++ b/llvm/lib/Target/LoongArch/TargetInfo/LLVMBuild.txt
-@@ -0,0 +1,22 @@
-+;===- ./lib/Target/LoongArch/TargetInfo/LLVMBuild.txt ---------------*- Conf -*--===;
-+;
-+; Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+; See https://llvm.org/LICENSE.txt for license information.
-+; SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-+;
-+;===------------------------------------------------------------------------===;
-+;
-+; This is an LLVMBuild description file for the components in this subdirectory.
-+;
-+; For more information on the LLVMBuild system, please see:
-+;
-+;   http://llvm.org/docs/LLVMBuild.html
-+;
-+;===------------------------------------------------------------------------===;
-+
-+[component_0]
-+type = Library
-+name = LoongArchInfo
-+parent = LoongArch
-+required_libraries = Support
-+add_to_library_groups = LoongArch
 diff --git a/llvm/lib/Target/LoongArch/TargetInfo/LoongArchTargetInfo.cpp b/llvm/lib/Target/LoongArch/TargetInfo/LoongArchTargetInfo.cpp
 new file mode 100644
-index 000000000000..2f6f143dbba3
+index 0000000000000..5913893e8cf7d
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/TargetInfo/LoongArchTargetInfo.cpp
-@@ -0,0 +1,33 @@
+@@ -0,0 +1,34 @@
 +//===-- LoongArchTargetInfo.cpp - LoongArch Target Implementation -------------------===//
 +//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
++//                     The LLVM Compiler Infrastructure
++//
++// This file is distributed under the University of Illinois Open Source
++// License. See LICENSE.TXT for details.
 +//
 +//===----------------------------------------------------------------------===//
 +
@@ -23435,7 +23283,7 @@ index 000000000000..2f6f143dbba3
 +}
 diff --git a/llvm/lib/Target/LoongArch/TargetInfo/LoongArchTargetInfo.h b/llvm/lib/Target/LoongArch/TargetInfo/LoongArchTargetInfo.h
 new file mode 100644
-index 000000000000..7dce2497f7d9
+index 0000000000000..7dce2497f7d9f
 --- /dev/null
 +++ b/llvm/lib/Target/LoongArch/TargetInfo/LoongArchTargetInfo.h
 @@ -0,0 +1,21 @@
@@ -23461,7 +23309,7 @@ index 000000000000..7dce2497f7d9
 +
 +#endif // LLVM_LIB_TARGET_LOONGARCH_TARGETINFO_LOONGARCHTARGETINFO_H
 diff --git a/llvm/lib/Transforms/Instrumentation/MemorySanitizer.cpp b/llvm/lib/Transforms/Instrumentation/MemorySanitizer.cpp
-index c51acdf52f14..20e1a2079714 100644
+index c51acdf52f14d..20e1a20797144 100644
 --- a/llvm/lib/Transforms/Instrumentation/MemorySanitizer.cpp
 +++ b/llvm/lib/Transforms/Instrumentation/MemorySanitizer.cpp
 @@ -390,6 +390,14 @@ static const MemoryMapParams Linux_X86_64_MemoryMapParams = {
@@ -23491,7 +23339,7 @@ index c51acdf52f14..20e1a2079714 100644
  static const PlatformMemoryMapParams Linux_MIPS_MemoryMapParams = {
    nullptr,
    &Linux_MIPS64_MemoryMapParams,
-@@ -508,6 +521,7 @@ public:
+@@ -508,6 +521,7 @@ class MemorySanitizer {
  private:
    friend struct MemorySanitizerVisitor;
    friend struct VarArgAMD64Helper;
@@ -23629,7 +23477,7 @@ index c51acdf52f14..20e1a2079714 100644
    Function &F;
 diff --git a/llvm/test/CodeGen/LoongArch/atomic-operand-imm0.ll b/llvm/test/CodeGen/LoongArch/atomic-operand-imm0.ll
 new file mode 100644
-index 000000000000..d1d0c0bc42f8
+index 0000000000000..d1d0c0bc42f80
 --- /dev/null
 +++ b/llvm/test/CodeGen/LoongArch/atomic-operand-imm0.ll
 @@ -0,0 +1,17 @@
@@ -23652,7 +23500,7 @@ index 000000000000..d1d0c0bc42f8
 +}
 diff --git a/llvm/test/CodeGen/LoongArch/atomic_16_8.ll b/llvm/test/CodeGen/LoongArch/atomic_16_8.ll
 new file mode 100644
-index 000000000000..cd09bbef3b0d
+index 0000000000000..cd09bbef3b0de
 --- /dev/null
 +++ b/llvm/test/CodeGen/LoongArch/atomic_16_8.ll
 @@ -0,0 +1,833 @@
@@ -24491,7 +24339,7 @@ index 000000000000..cd09bbef3b0d
 +}
 diff --git a/llvm/test/CodeGen/LoongArch/bss.ll b/llvm/test/CodeGen/LoongArch/bss.ll
 new file mode 100644
-index 000000000000..cfc30b3a7594
+index 0000000000000..cfc30b3a7594a
 --- /dev/null
 +++ b/llvm/test/CodeGen/LoongArch/bss.ll
 @@ -0,0 +1,5 @@
@@ -24502,7 +24350,7 @@ index 000000000000..cfc30b3a7594
 +@a = global i32 0, align 4
 diff --git a/llvm/test/CodeGen/LoongArch/bstrins_d.ll b/llvm/test/CodeGen/LoongArch/bstrins_d.ll
 new file mode 100644
-index 000000000000..9b2846723a4a
+index 0000000000000..9b2846723a4a3
 --- /dev/null
 +++ b/llvm/test/CodeGen/LoongArch/bstrins_d.ll
 @@ -0,0 +1,40 @@
@@ -24548,7 +24396,7 @@ index 000000000000..9b2846723a4a
 +}
 diff --git a/llvm/test/CodeGen/LoongArch/bstrins_w.ll b/llvm/test/CodeGen/LoongArch/bstrins_w.ll
 new file mode 100644
-index 000000000000..3b62a760e81b
+index 0000000000000..3b62a760e81be
 --- /dev/null
 +++ b/llvm/test/CodeGen/LoongArch/bstrins_w.ll
 @@ -0,0 +1,28 @@
@@ -24582,7 +24430,7 @@ index 000000000000..3b62a760e81b
 +}
 diff --git a/llvm/test/CodeGen/LoongArch/bstrpick_d.ll b/llvm/test/CodeGen/LoongArch/bstrpick_d.ll
 new file mode 100644
-index 000000000000..e1169cb21fc1
+index 0000000000000..e1169cb21fc1d
 --- /dev/null
 +++ b/llvm/test/CodeGen/LoongArch/bstrpick_d.ll
 @@ -0,0 +1,64 @@
@@ -24652,7 +24500,7 @@ index 000000000000..e1169cb21fc1
 +}
 diff --git a/llvm/test/CodeGen/LoongArch/bstrpick_w.ll b/llvm/test/CodeGen/LoongArch/bstrpick_w.ll
 new file mode 100644
-index 000000000000..e60de4737806
+index 0000000000000..e60de47378065
 --- /dev/null
 +++ b/llvm/test/CodeGen/LoongArch/bstrpick_w.ll
 @@ -0,0 +1,18 @@
@@ -24676,7 +24524,7 @@ index 000000000000..e60de4737806
 +}
 diff --git a/llvm/test/CodeGen/LoongArch/builtins-loongarch-base.ll b/llvm/test/CodeGen/LoongArch/builtins-loongarch-base.ll
 new file mode 100644
-index 000000000000..415530821a66
+index 0000000000000..415530821a669
 --- /dev/null
 +++ b/llvm/test/CodeGen/LoongArch/builtins-loongarch-base.ll
 @@ -0,0 +1,752 @@
@@ -25434,7 +25282,7 @@ index 000000000000..415530821a66
 +;
 diff --git a/llvm/test/CodeGen/LoongArch/disable-tail-calls.ll b/llvm/test/CodeGen/LoongArch/disable-tail-calls.ll
 new file mode 100644
-index 000000000000..586daca23c93
+index 0000000000000..586daca23c939
 --- /dev/null
 +++ b/llvm/test/CodeGen/LoongArch/disable-tail-calls.ll
 @@ -0,0 +1,94 @@
@@ -25534,7 +25382,7 @@ index 000000000000..586daca23c93
 +attributes #1 = { "disable-tail-calls"="false" }
 diff --git a/llvm/test/CodeGen/LoongArch/divrem.ll b/llvm/test/CodeGen/LoongArch/divrem.ll
 new file mode 100644
-index 000000000000..34293a83c25c
+index 0000000000000..34293a83c25c1
 --- /dev/null
 +++ b/llvm/test/CodeGen/LoongArch/divrem.ll
 @@ -0,0 +1,68 @@
@@ -25608,7 +25456,7 @@ index 000000000000..34293a83c25c
 +}
 diff --git a/llvm/test/CodeGen/LoongArch/eliminateFI.ll b/llvm/test/CodeGen/LoongArch/eliminateFI.ll
 new file mode 100644
-index 000000000000..0272c95bdb9e
+index 0000000000000..0272c95bdb9e7
 --- /dev/null
 +++ b/llvm/test/CodeGen/LoongArch/eliminateFI.ll
 @@ -0,0 +1,106 @@
@@ -25720,7 +25568,7 @@ index 000000000000..0272c95bdb9e
 +}
 diff --git a/llvm/test/CodeGen/LoongArch/fcopysign.ll b/llvm/test/CodeGen/LoongArch/fcopysign.ll
 new file mode 100644
-index 000000000000..7d8d6a9bf3df
+index 0000000000000..7d8d6a9bf3dfa
 --- /dev/null
 +++ b/llvm/test/CodeGen/LoongArch/fcopysign.ll
 @@ -0,0 +1,17 @@
@@ -25743,7 +25591,7 @@ index 000000000000..7d8d6a9bf3df
 +declare double @llvm.copysign.f64(double %a, double %b)
 diff --git a/llvm/test/CodeGen/LoongArch/inlineasm/extra-code.ll b/llvm/test/CodeGen/LoongArch/inlineasm/extra-code.ll
 new file mode 100644
-index 000000000000..986e27e2aab1
+index 0000000000000..986e27e2aab1b
 --- /dev/null
 +++ b/llvm/test/CodeGen/LoongArch/inlineasm/extra-code.ll
 @@ -0,0 +1,8 @@
@@ -25757,7 +25605,7 @@ index 000000000000..986e27e2aab1
 +}
 diff --git a/llvm/test/CodeGen/LoongArch/inlineasm/preld.ll b/llvm/test/CodeGen/LoongArch/inlineasm/preld.ll
 new file mode 100644
-index 000000000000..8dbbed99f16f
+index 0000000000000..8dbbed99f16fd
 --- /dev/null
 +++ b/llvm/test/CodeGen/LoongArch/inlineasm/preld.ll
 @@ -0,0 +1,8 @@
@@ -25771,7 +25619,7 @@ index 000000000000..8dbbed99f16f
 +}
 diff --git a/llvm/test/CodeGen/LoongArch/ldptr.ll b/llvm/test/CodeGen/LoongArch/ldptr.ll
 new file mode 100644
-index 000000000000..8395b264fc46
+index 0000000000000..8395b264fc461
 --- /dev/null
 +++ b/llvm/test/CodeGen/LoongArch/ldptr.ll
 @@ -0,0 +1,70 @@
@@ -25847,7 +25695,7 @@ index 000000000000..8395b264fc46
 +}
 diff --git a/llvm/test/CodeGen/LoongArch/lit.local.cfg b/llvm/test/CodeGen/LoongArch/lit.local.cfg
 new file mode 100644
-index 000000000000..6223fc691edc
+index 0000000000000..6223fc691edc4
 --- /dev/null
 +++ b/llvm/test/CodeGen/LoongArch/lit.local.cfg
 @@ -0,0 +1,3 @@
@@ -25856,7 +25704,7 @@ index 000000000000..6223fc691edc
 +
 diff --git a/llvm/test/CodeGen/LoongArch/logic-op.ll b/llvm/test/CodeGen/LoongArch/logic-op.ll
 new file mode 100644
-index 000000000000..c1029c1ff246
+index 0000000000000..c1029c1ff2469
 --- /dev/null
 +++ b/llvm/test/CodeGen/LoongArch/logic-op.ll
 @@ -0,0 +1,171 @@
@@ -26033,7 +25881,7 @@ index 000000000000..c1029c1ff246
 +
 diff --git a/llvm/test/CodeGen/LoongArch/lu12i.ll b/llvm/test/CodeGen/LoongArch/lu12i.ll
 new file mode 100644
-index 000000000000..55fd40edd1d8
+index 0000000000000..55fd40edd1d8e
 --- /dev/null
 +++ b/llvm/test/CodeGen/LoongArch/lu12i.ll
 @@ -0,0 +1,7 @@
@@ -26046,7 +25894,7 @@ index 000000000000..55fd40edd1d8
 +}
 diff --git a/llvm/test/CodeGen/LoongArch/named-register.ll b/llvm/test/CodeGen/LoongArch/named-register.ll
 new file mode 100644
-index 000000000000..0b0660fcab65
+index 0000000000000..0b0660fcab657
 --- /dev/null
 +++ b/llvm/test/CodeGen/LoongArch/named-register.ll
 @@ -0,0 +1,29 @@
@@ -26081,7 +25929,7 @@ index 000000000000..0b0660fcab65
 +!1 = !{!"$r21"}
 diff --git a/llvm/test/CodeGen/LoongArch/signext.ll b/llvm/test/CodeGen/LoongArch/signext.ll
 new file mode 100644
-index 000000000000..057be466ed1e
+index 0000000000000..057be466ed1e7
 --- /dev/null
 +++ b/llvm/test/CodeGen/LoongArch/signext.ll
 @@ -0,0 +1,9 @@
@@ -26096,7 +25944,7 @@ index 000000000000..057be466ed1e
 +}
 diff --git a/llvm/test/CodeGen/LoongArch/stptr.ll b/llvm/test/CodeGen/LoongArch/stptr.ll
 new file mode 100644
-index 000000000000..0a54e0f8fb76
+index 0000000000000..0a54e0f8fb76c
 --- /dev/null
 +++ b/llvm/test/CodeGen/LoongArch/stptr.ll
 @@ -0,0 +1,52 @@
@@ -26154,7 +26002,7 @@ index 000000000000..0a54e0f8fb76
 +}
 diff --git a/llvm/test/CodeGen/LoongArch/tailcall-R.ll b/llvm/test/CodeGen/LoongArch/tailcall-R.ll
 new file mode 100644
-index 000000000000..688d818ad18a
+index 0000000000000..688d818ad18ab
 --- /dev/null
 +++ b/llvm/test/CodeGen/LoongArch/tailcall-R.ll
 @@ -0,0 +1,62 @@
@@ -26222,7 +26070,7 @@ index 000000000000..688d818ad18a
 +}
 diff --git a/llvm/test/CodeGen/LoongArch/tailcall-check.ll b/llvm/test/CodeGen/LoongArch/tailcall-check.ll
 new file mode 100644
-index 000000000000..8cf2f9f915d6
+index 0000000000000..8cf2f9f915d68
 --- /dev/null
 +++ b/llvm/test/CodeGen/LoongArch/tailcall-check.ll
 @@ -0,0 +1,155 @@
@@ -26383,7 +26231,7 @@ index 000000000000..8cf2f9f915d6
 +}
 diff --git a/llvm/test/CodeGen/LoongArch/tailcall-mem.ll b/llvm/test/CodeGen/LoongArch/tailcall-mem.ll
 new file mode 100644
-index 000000000000..68ddaa8997b0
+index 0000000000000..68ddaa8997b0a
 --- /dev/null
 +++ b/llvm/test/CodeGen/LoongArch/tailcall-mem.ll
 @@ -0,0 +1,35 @@
@@ -26424,7 +26272,7 @@ index 000000000000..68ddaa8997b0
 +
 diff --git a/llvm/test/CodeGen/LoongArch/tailcall.ll b/llvm/test/CodeGen/LoongArch/tailcall.ll
 new file mode 100644
-index 000000000000..984df2cb63d1
+index 0000000000000..984df2cb63d15
 --- /dev/null
 +++ b/llvm/test/CodeGen/LoongArch/tailcall.ll
 @@ -0,0 +1,13 @@
@@ -26443,7 +26291,7 @@ index 000000000000..984df2cb63d1
 +declare void @foo(...)
 diff --git a/llvm/test/CodeGen/LoongArch/target-feature-double.ll b/llvm/test/CodeGen/LoongArch/target-feature-double.ll
 new file mode 100644
-index 000000000000..814d130723b0
+index 0000000000000..814d130723b00
 --- /dev/null
 +++ b/llvm/test/CodeGen/LoongArch/target-feature-double.ll
 @@ -0,0 +1,31 @@
@@ -26480,7 +26328,7 @@ index 000000000000..814d130723b0
 +}
 diff --git a/llvm/test/CodeGen/LoongArch/target-feature-float.ll b/llvm/test/CodeGen/LoongArch/target-feature-float.ll
 new file mode 100644
-index 000000000000..fd0ba21c6371
+index 0000000000000..fd0ba21c6371b
 --- /dev/null
 +++ b/llvm/test/CodeGen/LoongArch/target-feature-float.ll
 @@ -0,0 +1,35 @@
@@ -26521,7 +26369,7 @@ index 000000000000..fd0ba21c6371
 +}
 diff --git a/llvm/test/CodeGen/LoongArch/thread-pointer.ll b/llvm/test/CodeGen/LoongArch/thread-pointer.ll
 new file mode 100644
-index 000000000000..06a5886c4cab
+index 0000000000000..06a5886c4cab8
 --- /dev/null
 +++ b/llvm/test/CodeGen/LoongArch/thread-pointer.ll
 @@ -0,0 +1,9 @@
@@ -26536,7 +26384,7 @@ index 000000000000..06a5886c4cab
 +}
 diff --git a/llvm/test/MC/Disassembler/LoongArch/lit.local.cfg b/llvm/test/MC/Disassembler/LoongArch/lit.local.cfg
 new file mode 100644
-index 000000000000..6223fc691edc
+index 0000000000000..6223fc691edc4
 --- /dev/null
 +++ b/llvm/test/MC/Disassembler/LoongArch/lit.local.cfg
 @@ -0,0 +1,3 @@
@@ -26545,7 +26393,7 @@ index 000000000000..6223fc691edc
 +
 diff --git a/llvm/test/MC/LoongArch/aligned-nops.s b/llvm/test/MC/LoongArch/aligned-nops.s
 new file mode 100644
-index 000000000000..2ef26ac4b5ed
+index 0000000000000..2ef26ac4b5edc
 --- /dev/null
 +++ b/llvm/test/MC/LoongArch/aligned-nops.s
 @@ -0,0 +1,25 @@
@@ -26576,7 +26424,7 @@ index 000000000000..2ef26ac4b5ed
 +                                        # -- End function
 diff --git a/llvm/test/MC/LoongArch/invalid.s b/llvm/test/MC/LoongArch/invalid.s
 new file mode 100644
-index 000000000000..e0fc7ce4b202
+index 0000000000000..e0fc7ce4b2021
 --- /dev/null
 +++ b/llvm/test/MC/LoongArch/invalid.s
 @@ -0,0 +1,50 @@
@@ -26632,7 +26480,7 @@ index 000000000000..e0fc7ce4b202
 +bl              0x7FFFFFC+1                    # CHECK: :[[@LINE]]:1: error: branch to misaligned address
 diff --git a/llvm/test/MC/LoongArch/lit.local.cfg b/llvm/test/MC/LoongArch/lit.local.cfg
 new file mode 100644
-index 000000000000..6223fc691edc
+index 0000000000000..6223fc691edc4
 --- /dev/null
 +++ b/llvm/test/MC/LoongArch/lit.local.cfg
 @@ -0,0 +1,3 @@
@@ -26641,7 +26489,7 @@ index 000000000000..6223fc691edc
 +
 diff --git a/llvm/test/MC/LoongArch/target-abi-valid.s b/llvm/test/MC/LoongArch/target-abi-valid.s
 new file mode 100644
-index 000000000000..eb8fc09935a5
+index 0000000000000..eb8fc09935a57
 --- /dev/null
 +++ b/llvm/test/MC/LoongArch/target-abi-valid.s
 @@ -0,0 +1,23 @@
@@ -26670,7 +26518,7 @@ index 000000000000..eb8fc09935a5
 +# CHECK-LP64D:       Flags:  0x3, LP64D
 diff --git a/llvm/test/MC/LoongArch/unaligned-nops.s b/llvm/test/MC/LoongArch/unaligned-nops.s
 new file mode 100644
-index 000000000000..e60d3f1c946c
+index 0000000000000..e60d3f1c946c7
 --- /dev/null
 +++ b/llvm/test/MC/LoongArch/unaligned-nops.s
 @@ -0,0 +1,6 @@
@@ -26682,7 +26530,7 @@ index 000000000000..e60d3f1c946c
 +foo:
 diff --git a/llvm/test/MC/LoongArch/valid_12imm.s b/llvm/test/MC/LoongArch/valid_12imm.s
 new file mode 100644
-index 000000000000..2d45db6e05de
+index 0000000000000..2d45db6e05de9
 --- /dev/null
 +++ b/llvm/test/MC/LoongArch/valid_12imm.s
 @@ -0,0 +1,9 @@
@@ -26697,7 +26545,7 @@ index 000000000000..2d45db6e05de
 +xori           $r18, $r23, 99                # CHECK: xori       $r18, $r23, 99                # encoding: [0xf2,0x8e,0xc1,0x03]
 diff --git a/llvm/test/MC/LoongArch/valid_4operands.s b/llvm/test/MC/LoongArch/valid_4operands.s
 new file mode 100644
-index 000000000000..712754bd319c
+index 0000000000000..712754bd319c1
 --- /dev/null
 +++ b/llvm/test/MC/LoongArch/valid_4operands.s
 @@ -0,0 +1,14 @@
@@ -26717,7 +26565,7 @@ index 000000000000..712754bd319c
 +fsel           $f18, $f20, $f21, $fcc4       # CHECK: fsel       $f18, $f20, $f21, $fcc4       # encoding: [0x92,0x56,0x02,0x0d]
 diff --git a/llvm/test/MC/LoongArch/valid_bigimm.s b/llvm/test/MC/LoongArch/valid_bigimm.s
 new file mode 100644
-index 000000000000..a754633e2c94
+index 0000000000000..a754633e2c944
 --- /dev/null
 +++ b/llvm/test/MC/LoongArch/valid_bigimm.s
 @@ -0,0 +1,9 @@
@@ -26732,7 +26580,7 @@ index 000000000000..a754633e2c94
 +pcaddu18i      $r12, 26                      # CHECK: pcaddu18i  $r12, 26                      # encoding: [0x4c,0x03,0x00,0x1e]
 diff --git a/llvm/test/MC/LoongArch/valid_branch.s b/llvm/test/MC/LoongArch/valid_branch.s
 new file mode 100644
-index 000000000000..21e506a012f4
+index 0000000000000..21e506a012f40
 --- /dev/null
 +++ b/llvm/test/MC/LoongArch/valid_branch.s
 @@ -0,0 +1,44 @@
@@ -26782,7 +26630,7 @@ index 000000000000..21e506a012f4
 +bl              0x7FFFFFC                    # CHECK: bl          134217724                    # encoding: [0xff,0xfd,0xff,0x57]
 diff --git a/llvm/test/MC/LoongArch/valid_float.s b/llvm/test/MC/LoongArch/valid_float.s
 new file mode 100644
-index 000000000000..c2563af091ba
+index 0000000000000..c2563af091bac
 --- /dev/null
 +++ b/llvm/test/MC/LoongArch/valid_float.s
 @@ -0,0 +1,75 @@
@@ -26863,7 +26711,7 @@ index 000000000000..c2563af091ba
 +frint.d        $f29, $f2                     # CHECK: frint.d         $f29, $f2                     # encoding: [0x5d,0x48,0x1e,0x01]
 diff --git a/llvm/test/MC/LoongArch/valid_integer.s b/llvm/test/MC/LoongArch/valid_integer.s
 new file mode 100644
-index 000000000000..22b8dde9af37
+index 0000000000000..22b8dde9af378
 --- /dev/null
 +++ b/llvm/test/MC/LoongArch/valid_integer.s
 @@ -0,0 +1,93 @@
@@ -26962,7 +26810,7 @@ index 000000000000..22b8dde9af37
 +alsl.wu        $r19, $r8, $r25, 1            # CHECK: alsl.wu    $r19, $r8, $r25, 1            # encoding: [0x13,0x65,0x06,0x00]
 diff --git a/llvm/test/MC/LoongArch/valid_memory.s b/llvm/test/MC/LoongArch/valid_memory.s
 new file mode 100644
-index 000000000000..4286e80966df
+index 0000000000000..4286e80966df0
 --- /dev/null
 +++ b/llvm/test/MC/LoongArch/valid_memory.s
 @@ -0,0 +1,102 @@
@@ -27070,7 +26918,7 @@ index 000000000000..4286e80966df
 +stle.d         $r25, $r24, $r29              # CHECK: stle.d     $r25, $r24, $r29              # encoding: [0x19,0xf7,0x7f,0x38]
 diff --git a/llvm/test/MC/LoongArch/valid_priv.s b/llvm/test/MC/LoongArch/valid_priv.s
 new file mode 100644
-index 000000000000..0792216a977d
+index 0000000000000..0792216a977de
 --- /dev/null
 +++ b/llvm/test/MC/LoongArch/valid_priv.s
 @@ -0,0 +1,32 @@
@@ -27107,7 +26955,7 @@ index 000000000000..0792216a977d
 +dbcl           201                           # CHECK: dbcl            201                           # encoding: [0xc9,0x80,0x2a,0x00]
 +syscall        100                           # CHECK: syscall         100                           # encoding: [0x64,0x00,0x2b,0x00]
 diff --git a/llvm/tools/llvm-readobj/ELFDumper.cpp b/llvm/tools/llvm-readobj/ELFDumper.cpp
-index 3d43d1a72e7e..7887b82cd56e 100644
+index 3d43d1a72e7e8..2e359cc2c51ec 100644
 --- a/llvm/tools/llvm-readobj/ELFDumper.cpp
 +++ b/llvm/tools/llvm-readobj/ELFDumper.cpp
 @@ -1204,6 +1204,7 @@ const EnumEntry<unsigned> ElfMachineType[] = {
@@ -27118,51 +26966,46 @@ index 3d43d1a72e7e..7887b82cd56e 100644
  };
  
  const EnumEntry<unsigned> ElfSymbolBindings[] = {
-@@ -1612,7 +1613,16 @@ const EnumEntry<unsigned> ElfHeaderAVRFlags[] = {
+@@ -1611,6 +1612,14 @@ const EnumEntry<unsigned> ElfHeaderAVRFlags[] = {
+   ENUM_ENT(EF_AVR_LINKRELAX_PREPARED, "relaxable"),
  };
  
- 
--const EnumEntry<unsigned> ElfSymOtherFlags[] = {
-+static const EnumEntry<unsigned> ElfHeaderLoongArchFlags[] = {
-+    ENUM_ENT(EF_LARCH_BASE_ABI_LP64D, "LP64D"),
-+    ENUM_ENT(EF_LARCH_BASE_ABI_LP64S, "LP64S"), ENUM_ENT(EF_LARCH_BASE_ABI_LP64F, "LP64F")
-+    // FIXME: Change these and add more flags in future when all ABIs definition
-+    // were finalized. See current definitions:
-+    // https://loongson.github.io/LoongArch-Documentation/LoongArch-ELF-ABI-EN.html#_e_flags_identifies_abi_type_and_version
++const EnumEntry<unsigned> ElfHeaderLoongArchFlags[] = {
++  ENUM_ENT(EF_LARCH_BASE_ABI_LP64D, "LP64D"),
++  ENUM_ENT(EF_LARCH_BASE_ABI_LP64S, "LP64S"),
++  ENUM_ENT(EF_LARCH_BASE_ABI_LP64F, "LP64F"),
++  // FIXME: Change these and add more flags in future when all ABIs definition
++  // were finalized. See current definitions:
++  // https://loongson.github.io/LoongArch-Documentation/LoongArch-ELF-ABI-EN.html#_e_flags_identifies_abi_type_and_version
 +};
-+
-+
-+static const EnumEntry<unsigned> ElfSymOtherFlags[] = {
+ 
+ const EnumEntry<unsigned> ElfSymOtherFlags[] = {
    LLVM_READOBJ_ENUM_ENT(ELF, STV_INTERNAL),
-   LLVM_READOBJ_ENUM_ENT(ELF, STV_HIDDEN),
-   LLVM_READOBJ_ENUM_ENT(ELF, STV_PROTECTED)
-@@ -3320,6 +3330,11 @@ template <class ELFT> void GNUELFDumper<ELFT>::printFileHeaders() {
+@@ -3320,6 +3329,9 @@ template <class ELFT> void GNUELFDumper<ELFT>::printFileHeaders() {
    else if (e.e_machine == EM_AVR)
      ElfFlags = printFlags(e.e_flags, makeArrayRef(ElfHeaderAVRFlags),
                            unsigned(ELF::EF_AVR_ARCH_MASK));
-+  else if (e.e_machine == EM_RISCV)
-+    ElfFlags = printFlags(e.e_flags, makeArrayRef(ElfHeaderRISCVFlags));
 +  else if (e.e_machine == EM_LOONGARCH)
 +    ElfFlags = printFlags(e.e_flags, makeArrayRef(ElfHeaderLoongArchFlags),
 +                          unsigned(ELF::EF_LARCH_BASE_ABI));
    Str = "0x" + to_hexString(e.e_flags);
    if (!ElfFlags.empty())
      Str = Str + ", " + ElfFlags;
-@@ -6407,6 +6422,9 @@ template <class ELFT> void LLVMELFDumper<ELFT>::printFileHeaders() {
+@@ -6407,6 +6419,9 @@ template <class ELFT> void LLVMELFDumper<ELFT>::printFileHeaders() {
      else if (E.e_machine == EM_AVR)
        W.printFlags("Flags", E.e_flags, makeArrayRef(ElfHeaderAVRFlags),
                     unsigned(ELF::EF_AVR_ARCH_MASK));
-+
 +    else if (E.e_machine == EM_LOONGARCH)
-+      W.printFlags("Flags", E.e_flags, makeArrayRef(ElfHeaderLoongArchFlags));
++      W.printFlags("Flags", E.e_flags, makeArrayRef(ElfHeaderLoongArchFlags),
++                   unsigned(ELF::EF_LARCH_BASE_ABI));
      else
        W.printFlags("Flags", E.e_flags);
      W.printNumber("HeaderSize", E.e_ehsize);
 diff --git a/llvm/utils/UpdateTestChecks/asm.py b/llvm/utils/UpdateTestChecks/asm.py
-index 95d17baa210e..d909f37b825e 100644
+index 95d17baa210e8..326ac24d2c6b2 100644
 --- a/llvm/utils/UpdateTestChecks/asm.py
 +++ b/llvm/utils/UpdateTestChecks/asm.py
-@@ -72,6 +72,11 @@ ASM_FUNCTION_MSP430_RE = re.compile(
+@@ -72,6 +72,11 @@ class string:
      r'^_?(?P<func>[^:]+):[ \t]*;+[ \t]*@"?(?P=func)"?\n[^:]*?'
      r'(?P<body>.*?)\n'
      r'(\$|\.L)func_end[0-9]+:\n',             # $func_end0:
@@ -27174,7 +27017,7 @@ index 95d17baa210e..d909f37b825e 100644
      flags=(re.M | re.S))
  
  ASM_FUNCTION_AVR_RE = re.compile(
-@@ -316,6 +321,17 @@ def scrub_asm_avr(asm, args):
+@@ -316,6 +321,16 @@ def scrub_asm_avr(asm, args):
    asm = common.SCRUB_TRAILING_WHITESPACE_RE.sub(r'', asm)
    return asm
  
@@ -27188,11 +27031,10 @@ index 95d17baa210e..d909f37b825e 100644
 +  asm = common.SCRUB_TRAILING_WHITESPACE_RE.sub(r'', asm)
 +  return asm
 +
-+
  def scrub_asm_riscv(asm, args):
    # Scrub runs of whitespace out of the assembly, but leave the leading
    # whitespace in place.
-@@ -433,6 +449,7 @@ def get_run_handler(triple):
+@@ -433,6 +448,7 @@ def get_run_handler(triple):
        'avr': (scrub_asm_avr, ASM_FUNCTION_AVR_RE),
        'ppc32': (scrub_asm_powerpc, ASM_FUNCTION_PPC_RE),
        'powerpc': (scrub_asm_powerpc, ASM_FUNCTION_PPC_RE),
@@ -27201,31 +27043,31 @@ index 95d17baa210e..d909f37b825e 100644
        'riscv64': (scrub_asm_riscv, ASM_FUNCTION_RISCV_RE),
        'lanai': (scrub_asm_lanai, ASM_FUNCTION_LANAI_RE),
 diff --git a/llvm/utils/gn/secondary/clang/lib/Basic/BUILD.gn b/llvm/utils/gn/secondary/clang/lib/Basic/BUILD.gn
-index 09afa57ab95f..103e98e58e96 100644
+index 09afa57ab95fa..e5c7fd7778e5e 100644
 --- a/llvm/utils/gn/secondary/clang/lib/Basic/BUILD.gn
 +++ b/llvm/utils/gn/secondary/clang/lib/Basic/BUILD.gn
-@@ -95,6 +95,7 @@ static_library("Basic") {
+@@ -94,6 +94,7 @@ static_library("Basic") {
+     "Targets/Hexagon.cpp",
      "Targets/Lanai.cpp",
      "Targets/Le64.cpp",
-     "Targets/M68k.cpp",
 +    "Targets/LoongArch.cpp",
+     "Targets/M68k.cpp",
      "Targets/MSP430.cpp",
      "Targets/Mips.cpp",
-     "Targets/NVPTX.cpp",
 diff --git a/llvm/utils/gn/secondary/clang/lib/Driver/BUILD.gn b/llvm/utils/gn/secondary/clang/lib/Driver/BUILD.gn
-index 6e34fcc28c0a..a9b74f2b3f16 100644
+index 6e34fcc28c0a8..4c66fde3de4b3 100644
 --- a/llvm/utils/gn/secondary/clang/lib/Driver/BUILD.gn
 +++ b/llvm/utils/gn/secondary/clang/lib/Driver/BUILD.gn
-@@ -48,6 +48,7 @@ static_library("Driver") {
+@@ -47,6 +47,7 @@ static_library("Driver") {
+     "ToolChains/Ananas.cpp",
      "ToolChains/Arch/AArch64.cpp",
      "ToolChains/Arch/ARM.cpp",
-     "ToolChains/Arch/M68k.cpp",
 +    "ToolChains/Arch/LoongArch.cpp",
+     "ToolChains/Arch/M68k.cpp",
      "ToolChains/Arch/Mips.cpp",
      "ToolChains/Arch/PPC.cpp",
-     "ToolChains/Arch/RISCV.cpp",
 diff --git a/llvm/utils/gn/secondary/llvm/include/llvm/IR/BUILD.gn b/llvm/utils/gn/secondary/llvm/include/llvm/IR/BUILD.gn
-index f12d39ad6e46..1280c7483486 100644
+index f12d39ad6e46e..1280c7483486d 100644
 --- a/llvm/utils/gn/secondary/llvm/include/llvm/IR/BUILD.gn
 +++ b/llvm/utils/gn/secondary/llvm/include/llvm/IR/BUILD.gn
 @@ -67,6 +67,16 @@ tablegen("IntrinsicsHexagon") {
@@ -27255,7 +27097,7 @@ index f12d39ad6e46..1280c7483486 100644
      ":IntrinsicsPowerPC",
 diff --git a/llvm/utils/gn/secondary/llvm/lib/Target/LoongArch/AsmParser/BUILD.gn b/llvm/utils/gn/secondary/llvm/lib/Target/LoongArch/AsmParser/BUILD.gn
 new file mode 100644
-index 000000000000..cc3bb49a6ac7
+index 0000000000000..cc3bb49a6ac7e
 --- /dev/null
 +++ b/llvm/utils/gn/secondary/llvm/lib/Target/LoongArch/AsmParser/BUILD.gn
 @@ -0,0 +1,24 @@
@@ -27285,7 +27127,7 @@ index 000000000000..cc3bb49a6ac7
 +}
 diff --git a/llvm/utils/gn/secondary/llvm/lib/Target/LoongArch/BUILD.gn b/llvm/utils/gn/secondary/llvm/lib/Target/LoongArch/BUILD.gn
 new file mode 100644
-index 000000000000..e89db5200e89
+index 0000000000000..e89db5200e899
 --- /dev/null
 +++ b/llvm/utils/gn/secondary/llvm/lib/Target/LoongArch/BUILD.gn
 @@ -0,0 +1,102 @@
@@ -27393,7 +27235,7 @@ index 000000000000..e89db5200e89
 +}
 diff --git a/llvm/utils/gn/secondary/llvm/lib/Target/LoongArch/Disassembler/BUILD.gn b/llvm/utils/gn/secondary/llvm/lib/Target/LoongArch/Disassembler/BUILD.gn
 new file mode 100644
-index 000000000000..0a9b4cf59441
+index 0000000000000..0a9b4cf594418
 --- /dev/null
 +++ b/llvm/utils/gn/secondary/llvm/lib/Target/LoongArch/Disassembler/BUILD.gn
 @@ -0,0 +1,23 @@
@@ -27422,7 +27264,7 @@ index 000000000000..0a9b4cf59441
 +}
 diff --git a/llvm/utils/gn/secondary/llvm/lib/Target/LoongArch/MCTargetDesc/BUILD.gn b/llvm/utils/gn/secondary/llvm/lib/Target/LoongArch/MCTargetDesc/BUILD.gn
 new file mode 100644
-index 000000000000..f0b96c965fe4
+index 0000000000000..f0b96c965fe47
 --- /dev/null
 +++ b/llvm/utils/gn/secondary/llvm/lib/Target/LoongArch/MCTargetDesc/BUILD.gn
 @@ -0,0 +1,74 @@
@@ -27502,7 +27344,7 @@ index 000000000000..f0b96c965fe4
 +}
 diff --git a/llvm/utils/gn/secondary/llvm/lib/Target/LoongArch/TargetInfo/BUILD.gn b/llvm/utils/gn/secondary/llvm/lib/Target/LoongArch/TargetInfo/BUILD.gn
 new file mode 100644
-index 000000000000..a476bdd5fd16
+index 0000000000000..a476bdd5fd161
 --- /dev/null
 +++ b/llvm/utils/gn/secondary/llvm/lib/Target/LoongArch/TargetInfo/BUILD.gn
 @@ -0,0 +1,9 @@
@@ -27516,7 +27358,7 @@ index 000000000000..a476bdd5fd16
 +  ]
 +}
 diff --git a/llvm/utils/gn/secondary/llvm/lib/Target/targets.gni b/llvm/utils/gn/secondary/llvm/lib/Target/targets.gni
-index 699b01fbba9a..0aa665185c42 100644
+index 699b01fbba9a7..0aa665185c423 100644
 --- a/llvm/utils/gn/secondary/llvm/lib/Target/targets.gni
 +++ b/llvm/utils/gn/secondary/llvm/lib/Target/targets.gni
 @@ -16,6 +16,7 @@ llvm_all_targets = [
@@ -27544,21 +27386,3 @@ index 699b01fbba9a..0aa665185c42 100644
    } else if (target == "Mips") {
      llvm_build_Mips = true
    } else if (target == "PowerPC") {
-diff --git a/third-party/benchmark/src/cycleclock.h b/third-party/benchmark/src/cycleclock.h
-index d65d32a39d3d..4420af94b31a 100644
---- a/third-party/benchmark/src/cycleclock.h
-+++ b/third-party/benchmark/src/cycleclock.h
-@@ -174,10 +174,12 @@ inline BENCHMARK_ALWAYS_INLINE int64_t Now() {
-   gettimeofday(&tv, nullptr);
-   return static_cast<int64_t>(tv.tv_sec) * 1000000 + tv.tv_usec;
- #elif defined(__loongarch__)
-+  // loongarch apparently only allows rdtsc for superusers, so we fall
-+  // back to gettimeofday.  It's possible clock_gettime would be better.
-   struct timeval tv;
-   gettimeofday(&tv, nullptr);
-   return static_cast<int64_t>(tv.tv_sec) * 1000000 + tv.tv_usec;
--#elif defined(__s390__)  // Covers both s390 and s390x.
-+#elif defined(__s390__) // Covers both s390 and s390x.
-   // Return the CPU clock.
-   uint64_t tsc;
- #if defined(BENCHMARK_OS_ZOS) && defined(COMPILER_IBMXL)
