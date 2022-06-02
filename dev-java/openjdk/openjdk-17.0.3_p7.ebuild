@@ -219,7 +219,7 @@ src_configure() {
 	)
 
 	use riscv && myconf+=( --with-boot-jdk-jvmargs="-Djdk.lang.Process.launchMechanism=vfork" )
-	
+
 	use loong && myconf+=( --with-jvm-variants=zero --with-libffi-include="/usr/lib64/libffi/include" --with-libffi-lib="/usr/lib64" )
 
 	if use javafx; then
@@ -291,8 +291,12 @@ src_install() {
 	# must be done before running itself
 	java-vm_set-pax-markings "${ddest}"
 
-	einfo "Creating the Class Data Sharing archives and disabling usage tracking"
-	"${ddest}/bin/java" -server -Xshare:dump -Djdk.disableLastUsageTracking || die
+	if use loong; then
+		einfo "no shared space under loongarch64"
+	else
+		einfo "Creating the Class Data Sharing archives and disabling usage tracking"
+		"${ddest}/bin/java" -server -Xshare:dump -Djdk.disableLastUsageTracking || die
+	fi
 
 	use gentoo-vm && java-vm_install-env "${FILESDIR}"/${PN}-${SLOT}.env.sh
 	java-vm_revdep-mask
