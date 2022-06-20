@@ -1,0 +1,12 @@
+diff -ur a/src/hotspot/os/linux/os_linux.cpp b/src/hotspot/os/linux/os_linux.cpp
+--- a/src/hotspot/os/linux/os_linux.cpp	2022-04-20 03:55:43.000000000 +0800
++++ b/src/hotspot/os/linux/os_linux.cpp	2022-06-20 23:16:32.524516000 +0800
+@@ -1735,7 +1735,7 @@
+   static  Elf32_Half running_arch_code=EM_SH;
+ #elif  (defined RISCV)
+   static  Elf32_Half running_arch_code=EM_RISCV;
+-#elif  (defined LOONGARCH)
++#elif  (defined LOONGARCH64)
+   static  Elf32_Half running_arch_code=EM_LOONGARCH;
+ #else
+     #error Method os::dll_load requires that one of following is defined:\
