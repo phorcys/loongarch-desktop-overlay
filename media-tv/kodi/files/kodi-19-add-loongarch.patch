@@ -1,0 +1,66 @@
+diff -ur a/cmake/scripts/linux/ArchSetup.cmake b/cmake/scripts/linux/ArchSetup.cmake
+--- a/cmake/scripts/linux/ArchSetup.cmake	2022-03-03 02:38:51.000000000 +0800
++++ b/cmake/scripts/linux/ArchSetup.cmake	2022-06-21 13:33:50.660947000 +0800
+@@ -35,6 +35,9 @@
+   elseif(CPU MATCHES riscv64)
+     set(ARCH riscv64)
+     set(NEON False)
++  elseif(CPU MATCHES loongarch64)
++    set(ARCH loongarch64)
++    set(NEON False)
+   else()
+     message(SEND_ERROR "Unknown CPU: ${CPU}")
+   endif()
+只在 b 存在：.git
+diff -ur a/xbmc/cores/DllLoader/DllLoader.h b/xbmc/cores/DllLoader/DllLoader.h
+--- a/xbmc/cores/DllLoader/DllLoader.h	2022-03-03 02:38:51.000000000 +0800
++++ b/xbmc/cores/DllLoader/DllLoader.h	2022-06-21 13:33:50.661947000 +0800
+@@ -24,7 +24,8 @@
+     !defined(__SH4__) && \
+     !defined(__s390x__) && \
+     !defined(__sparc__) && \
+-    !defined(__xtensa__)
++    !defined(__xtensa__) && \
++    !defined(__loongarch__)
+ #define USE_LDT_KEEPER
+ #include "ldt_keeper.h"
+ #endif
+diff -ur a/xbmc/cores/DllLoader/ldt_keeper.c b/xbmc/cores/DllLoader/ldt_keeper.c
+--- a/xbmc/cores/DllLoader/ldt_keeper.c	2022-03-03 02:38:51.000000000 +0800
++++ b/xbmc/cores/DllLoader/ldt_keeper.c	2022-06-21 13:33:50.661947000 +0800
+@@ -31,7 +31,8 @@
+     !defined(__SH4__) && \
+     !defined(__s390x__) && \
+     !defined(__sparc__) && \
+-    !defined(__xtensa__)
++    !defined(__xtensa__) && \
++    !defined(__loongarch__)
+ // clang-format on
+ 
+ #include "ldt_keeper.h"
+diff -ur a/xbmc/platform/linux/CPUInfoLinux.cpp b/xbmc/platform/linux/CPUInfoLinux.cpp
+--- a/xbmc/platform/linux/CPUInfoLinux.cpp	2022-03-03 02:38:51.000000000 +0800
++++ b/xbmc/platform/linux/CPUInfoLinux.cpp	2022-06-21 16:47:51.406947000 +0800
+@@ -233,7 +233,8 @@
+       {
+         std::ssub_match value = match[1];
+ 
+-        if (line.find("model name") != std::string::npos)
++        if (line.find("model name") != std::string::npos
++		|| line.find("Model Name") != std::string::npos)
+           m_cpuModel = value.str();
+ 
+         if (line.find("BogoMIPS") != std::string::npos)
+diff -ur a/xbmc/utils/MathUtils.h b/xbmc/utils/MathUtils.h
+--- a/xbmc/utils/MathUtils.h	2022-03-03 02:38:51.000000000 +0800
++++ b/xbmc/utils/MathUtils.h	2022-06-21 13:33:50.661947000 +0800
+@@ -35,7 +35,8 @@
+     defined(__SH4__) || \
+     defined(__s390x__) || \
+     defined(__sparc__) || \
+-    defined(__xtensa__)
++    defined(__xtensa__) || \
++    defined(__loongarch__)
+ #define DISABLE_MATHUTILS_ASM_ROUND_INT
+ #endif
+ // clang-format on
