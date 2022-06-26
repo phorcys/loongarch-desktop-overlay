@@ -920,6 +920,9 @@ src_configure() {
 				append-ldflags -Wl,--no-keep-memory -Wl,--reduce-memory-overheads
 			fi
 			;;
+		loongarch64)
+			elog "disable jemalloc"
+			mozconfig_add_options_ac --disable-jemalloc
 	esac
 
 	if ! use elibc_glibc ; then
@@ -988,6 +991,10 @@ src_configure() {
 }
 
 src_compile() {
+
+	if use loong; then
+		sed -i -e "s/constexpr static const uint64_t ROOT_CLIP_CHAIN/\/\/constexpr static const uint64_t ROOT_CLIP_CHAIN/g" ${BUILD_DIR}/dist/include/mozilla/webrender/webrender_ffi_generated.h
+	fi
 	local virtx_cmd=
 
 	if use pgo ; then

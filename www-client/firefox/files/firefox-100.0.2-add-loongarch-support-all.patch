@@ -4176,6 +4176,27 @@ diff -uNr a/tools/profiler/lul/LulMainInt.h b/tools/profiler/lul/LulMainInt.h
  #else
  #  error "Unknown arch"
  #endif
+@@ -363,6 +363,10 @@
+     h = mozilla::AddToHash(h, rs.mPCexpr.hash());
+     h = mozilla::AddToHash(h, rs.mFPexpr.hash());
+     h = mozilla::AddToHash(h, rs.mSPexpr.hash());
++#elif defined(GP_ARCH_loongarch64)
++    h = mozilla::AddToHash(h, rs.mPCexpr.hash());
++    h = mozilla::AddToHash(h, rs.mFPexpr.hash());
++    h = mozilla::AddToHash(h, rs.mSPexpr.hash());    
+ #else
+ #  error "Unknown arch"
+ #endif
+@@ -387,6 +391,9 @@
+ #elif defined(GP_ARCH_mips64)
+            rs1.mPCexpr.equals(rs2.mPCexpr) && rs1.mFPexpr.equals(rs2.mFPexpr) &&
+            rs1.mSPexpr.equals(rs2.mSPexpr);
++#elif defined(GP_ARCH_loongarch64)
++           rs1.mPCexpr.equals(rs2.mPCexpr) && rs1.mFPexpr.equals(rs2.mFPexpr) &&
++           rs1.mSPexpr.equals(rs2.mSPexpr);       
+ #else
+ #  error "Unknown arch"
+ #endif
 @@ -412,6 +420,12 @@
      case DW_REG_MIPS_SP:
      case DW_REG_MIPS_PC:
@@ -4239,20 +4260,20 @@ diff -uNr a/xpcom/reflect/xptcall/md/unix/xptcinvoke_asm_loongarch64.S b/xpcom/r
 +_NS_InvokeByIndex:
 +    .cfi_startproc
 +    addi.d    $sp, $sp, -32
-+    .cfi_adjust_cfa_offset 32
++    //.cfi_adjust_cfa_offset 32
 +    st.d      $s0, $sp, 16
-+    .cfi_rel_offset $s0, 16
++    //.cfi_rel_offset $s0, 16
 +    st.d      $s1, $sp, 8
-+    .cfi_rel_offset $s1, 8
++    //.cfi_rel_offset $s1, 8
 +    st.d      $s2, $sp, 0
-+    .cfi_rel_offset $s2, 0
++    //.cfi_rel_offset $s2, 0
 +    st.d      $ra, $sp, 24
-+    .cfi_rel_offset $ra, 24
++    //.cfi_rel_offset $ra, 24
 +
 +    move      $s2, $a0
 +    move      $s1, $a1
 +    move      $s0, $sp
-+    .cfi_def_cfa_register $s0
++    //.cfi_def_cfa_register $s0
 +
 +    /* 16-bytes alignment */
 +    addi.w    $a0, $a2, 1
@@ -4262,9 +4283,9 @@ diff -uNr a/xpcom/reflect/xptcall/md/unix/xptcinvoke_asm_loongarch64.S b/xpcom/r
 +    sub.d     $sp, $sp, $a0
 +    move      $a4, $sp
 +
-+    addi.d    $sp, $sp, -8*(NGPREGS+NFPREGS)
++    addi.d    $sp, $sp, -128 //-8*(NGPREGS+NFPREGS)
 +    move      $a0, $sp
-+    addi.d    $a1, $sp, 8*NGPREGS
++    addi.d    $a1, $sp, 64 //8*NGPREGS
 +
 +    bl    invoke_copy_to_stack
 +
@@ -4288,7 +4309,7 @@ diff -uNr a/xpcom/reflect/xptcall/md/unix/xptcinvoke_asm_loongarch64.S b/xpcom/r
 +    fld.d     $f6, $sp, 112
 +    fld.d     $f7, $sp, 120
 +
-+    addi.d    $sp, $sp, 8*(NGPREGS+NFPREGS)
++    addi.d    $sp, $sp, 128 // 8*(NGPREGS+NFPREGS)
 +
 +    ld.d      $s2, $s2, 0
 +    slli.w    $s1, $s1, 3
@@ -4297,17 +4318,17 @@ diff -uNr a/xpcom/reflect/xptcall/md/unix/xptcinvoke_asm_loongarch64.S b/xpcom/r
 +    jirl      $ra, $t0, 0
 +
 +    move      $sp, $s0
-+    .cfi_def_cfa_register $sp
++    //.cfi_def_cfa_register $sp
 +    ld.d      $s0, $sp, 16
-+    .cfi_restore $s0
++    //.cfi_restore $s0
 +    ld.d      $s1, $sp, 8
-+    .cfi_restore $s1
++    //.cfi_restore $s1
 +    ld.d      $s2, $sp, 0
-+    .cfi_restore $s2
++    //.cfi_restore $s2
 +    ld.d      $ra, $sp, 24
-+    .cfi_restore $ra
++    //.cfi_restore $ra
 +    addi.d    $sp, $sp, 32
-+    .cfi_adjust_cfa_offset -32
++    //.cfi_adjust_cfa_offset -32
 +    jirl      $r0, $ra, 0
 +    .cfi_endproc
 +    .size   _NS_InvokeByIndex, . - _NS_InvokeByIndex
@@ -4441,8 +4462,8 @@ diff -uNr a/xpcom/reflect/xptcall/md/unix/xptcstubs_asm_loongarch64.S b/xpcom/re
 +SharedStub:
 +    .cfi_startproc
 +    move    $t1, $sp
-+    addi.d    $sp, $sp, -8*(NGPREGS+NFPREGS)-16
-+    .cfi_adjust_cfa_offset 8*(NGPREGS+NFPREGS)+16
++    addi.d    $sp, $sp, -144 // -8*(NGPREGS+NFPREGS)-16
++    .cfi_adjust_cfa_offset 144 //8*(NGPREGS+NFPREGS)+16
 +    st.d    $a0, $sp, 0
 +    st.d    $a1, $sp, 8
 +    st.d    $a2, $sp, 16
@@ -4460,20 +4481,20 @@ diff -uNr a/xpcom/reflect/xptcall/md/unix/xptcstubs_asm_loongarch64.S b/xpcom/re
 +    fst.d   $f6, $sp, 112
 +    fst.d   $f7, $sp, 120
 +    st.d    $ra, $sp, 136
-+    .cfi_rel_offset $ra, 136
++    //.cfi_rel_offset $ra, 136
 +
 +    /* methodIndex is passed from stub */
 +    move    $a1, $t0
 +    move    $a2, $t1
 +    move    $a3, $sp
-+    addi.d    $a4, $sp, 8*NGPREGS
++    addi.d    $a4, $sp, 64
 +
 +    bl      PrepareAndDispatch
 +
 +    ld.d    $ra, $sp, 136
-+    .cfi_restore $ra
-+    addi.d    $sp, $sp, 8*(NGPREGS+NFPREGS)+16
-+    .cfi_adjust_cfa_offset -8*(NGPREGS+NFPREGS)-16
++    //.cfi_restore $ra
++    addi.d    $sp, $sp, 144 //8*(NGPREGS+NFPREGS)+16
++    //.cfi_adjust_cfa_offset -8*(NGPREGS+NFPREGS)-16
 +    jirl    $r0, $r1, 0
 +    .cfi_endproc
 +
