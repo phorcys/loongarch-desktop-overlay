@@ -1309,11 +1309,11 @@ index d83bc9e529a6d..5b2a98b52aa0a 100644
 +    return Addr;
 +  }
 +
-+  std::pair<CharUnits, CharUnits> SizeAndAlign =
++  auto SizeAndAlign =
 +      getContext().getTypeInfoInChars(Ty);
 +
 +  // Arguments bigger than 2*Xlen bytes are passed indirectly.
-+  bool IsIndirect = SizeAndAlign.first > 2 * SlotSize;
++  bool IsIndirect = SizeAndAlign.Width > 2 * SlotSize;
 +
 +  return emitVoidPtrVAArg(CGF, VAListAddr, Ty, IsIndirect, SizeAndAlign,
 +                          SlotSize, /*AllowHigherAlign=*/true);
