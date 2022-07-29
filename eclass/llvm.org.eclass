@@ -149,7 +149,7 @@ case ${PV} in
 	13*)
 		ALL_LLVM_EXPERIMENTAL_TARGETS=( ARC CSKY M68k VE )
 		ALL_LLVM_PRODUCTION_TARGETS=(
-			AArch64 AMDGPU ARM AVR BPF Hexagon Lanai LoongArch Mips MSP430 NVPTX
+			AArch64 AMDGPU ARM AVR BPF Hexagon Lanai Mips MSP430 NVPTX
 			PowerPC RISCV Sparc SystemZ WebAssembly X86 XCore
 		)
 		;;

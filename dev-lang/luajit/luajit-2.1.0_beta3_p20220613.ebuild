@@ -2,7 +2,7 @@
 # Distributed under the terms of the GNU General Public License v2
 
 EAPI=7
-GIT_COMMIT=1d7b5029c5ba36870d25c67524034d452b761d27
+GIT_COMMIT=0065cff7e0222c234b75a71e72b8883df5d000c2
 
 inherit pax-utils toolchain-funcs
 
@@ -17,15 +17,14 @@ SRC_URI="https://github.com/LuaJIT/LuaJIT/archive/${GIT_COMMIT}.tar.gz -> ${P}.t
 
 LICENSE="MIT"
 # this should probably be pkgmoved to 2.0 for sake of consistency.
-SLOT="2"
-KEYWORDS="amd64 arm arm64 -hppa ~loong ppc -riscv -sparc x86 ~amd64-linux ~x86-linux"
+SLOT="2/${PV}"
+KEYWORDS="~amd64 ~arm ~arm64 -hppa ~loong ~ppc -riscv -sparc ~x86 ~amd64-linux ~x86-linux"
 IUSE="lua52compat static-libs"
 
+S="${WORKDIR}/LuaJIT-${GIT_COMMIT}"
 PATCHES=(
 	"${FILESDIR}/luajit-2-loongarch.patch"
 )
-
-S="${WORKDIR}/LuaJIT-${GIT_COMMIT}"
 
 _emake() {
 	emake \
