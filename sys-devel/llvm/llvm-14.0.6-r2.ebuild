@@ -51,6 +51,9 @@ BDEPEND="
 		dev-python/sphinx[${PYTHON_USEDEP}]
 	') )
 	libffi? ( virtual/pkgconfig )
+	test? (
+		sys-apps/which
+	)
 "
 # There are no file collisions between these versions but having :0
 # installed means llvm-config there will take precedence.
@@ -62,34 +65,34 @@ PDEPEND="
 	sys-devel/llvm-common
 	binutils-plugin? ( >=sys-devel/llvmgold-${SLOT} )
 "
-PATCHES=(
-	"${FILESDIR}"/llvm-14.0.5-add-loongarch-support.patch
-)
 
 LLVM_COMPONENTS=( llvm cmake third-party )
-LLVM_MANPAGES=pregenerated
-LLVM_PATCHSET=${PV}
+LLVM_MANPAGES=1
+LLVM_PATCHSET=${PV}-r2
 LLVM_USE_TARGETS=provide
 llvm.org_set_globals
 
 python_check_deps() {
 	use doc || return 0
 
-	has_version -b "dev-python/recommonmark[${PYTHON_USEDEP}]" &&
-	has_version -b "dev-python/sphinx[${PYTHON_USEDEP}]"
+	python_has_version -b "dev-python/recommonmark[${PYTHON_USEDEP}]" &&
+	python_has_version -b "dev-python/sphinx[${PYTHON_USEDEP}]"
 }
 
-check_live_ebuild() {
+check_uptodate() {
 	local prod_targets=(
 		$(sed -n -e '/set(LLVM_ALL_TARGETS/,/)/p' CMakeLists.txt \
 			| tail -n +2 | head -n -1)
 	)
+	elog "1: prod_targets: ${prod_targets[*]}"
 	local all_targets=(
 		lib/Target/*/
 	)
+	elog "local: ${all_targets[*]}"
 	all_targets=( "${all_targets[@]#lib/Target/}" )
 	all_targets=( "${all_targets[@]%/}" )
 
+	elog "new local : ${all_targets}"
 	local exp_targets=() i
 	for i in "${all_targets[@]}"; do
 		has "${i}" "${prod_targets[@]}" || exp_targets+=( "${i}" )
@@ -107,6 +110,7 @@ check_live_ebuild() {
 		eqawarn "    Have: ${ALL_LLVM_PRODUCTION_TARGETS[*]}"
 		eqawarn "Expected: ${prod_targets[*]}"
 	fi
+	elog "${ALL_LLVM_PRODUCTION_TARGETS}   exp:  ${ALL_LLVM_EXPERIMENTAL_TARGETS}"
 }
 
 check_distribution_components() {
@@ -142,7 +146,7 @@ check_distribution_components() {
 
 				all_targets+=( "${l}" )
 			fi
-		done < <(ninja -t targets all)
+		done < <(${NINJA} -t targets all)
 
 		while read -r l; do
 			my_targets+=( "${l}" )
@@ -170,16 +174,22 @@ check_distribution_components() {
 }
 
 src_prepare() {
+	eapply -p2 "${FILESDIR}"/llvm-14.0.5-add-loongarch-support.patch
+
 	# disable use of SDK on OSX, bug #568758
 	sed -i -e 's/xcrun/false/' utils/lit/lit/util.py || die
 
 	# Update config.guess to support more systems
 	cp "${BROOT}/usr/share/gnuconfig/config.guess" cmake/ || die
 
-	# Verify that the live ebuild is up-to-date
-	check_live_ebuild
+	# Verify that the ebuild is up-to-date
+	check_uptodate
 
 	llvm.org_src_prepare
+
+	# remove regressing test
+	# https://github.com/llvm/llvm-project/issues/55761
+	rm test/Other/ChangePrinters/DotCfg/print-changed-dot-cfg.ll || die
 }
 
 # Is LLVM being linked against libc++?

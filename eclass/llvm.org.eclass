@@ -3,9 +3,9 @@
 
 # @ECLASS: llvm.org.eclass
 # @MAINTAINER:
-# Michał Górny <mgorny@gentoo.org>
+# MichaÅ GÃ³rny <mgorny@gentoo.org>
 # @AUTHOR:
-# Michał Górny <mgorny@gentoo.org>
+# MichaÅ GÃ³rny <mgorny@gentoo.org>
 # @SUPPORTED_EAPIS: 7 8
 # @BLURB: Common bits for fetching & unpacking llvm.org projects
 # @DESCRIPTION:
@@ -45,7 +45,7 @@ esac
 # @DESCRIPTION:
 # The major version of current LLVM trunk.  Used to determine
 # the correct branch to use.
-_LLVM_MASTER_MAJOR=15
+_LLVM_MASTER_MAJOR=16
 
 # @ECLASS_VARIABLE: _LLVM_NEWEST_MANPAGE_RELEASE
 # @INTERNAL
@@ -162,7 +162,7 @@ case ${PV} in
 		;;
 	*)
 		ALL_LLVM_EXPERIMENTAL_TARGETS=(
-			ARC CSKY DirectX LoongArch M68k SPIRV
+			ARC CSKY DirectX M68k SPIRV
 		)
 		ALL_LLVM_PRODUCTION_TARGETS=(
 			AArch64 AMDGPU ARM AVR BPF Hexagon Lanai LoongArch Mips MSP430 NVPTX
@@ -201,14 +201,14 @@ llvm.org_set_globals() {
 	elif [[ ${_LLVM_SOURCE_TYPE} == tar ]]; then
 		if ver_test -ge 14.0.5; then
 			SRC_URI+="
-				https://github.com/llvm/llvm-project/releases/download/llvmorg-${PV}/llvm-project-${PV}.src.tar.xz
+				https://github.com/llvm/llvm-project/releases/download/llvmorg-${PV/_/-}/llvm-project-${PV/_/}.src.tar.xz
 				verify-sig? (
-					https://github.com/llvm/llvm-project/releases/download/llvmorg-${PV}/llvm-project-${PV}.src.tar.xz.sig
+					https://github.com/llvm/llvm-project/releases/download/llvmorg-${PV/_/-}/llvm-project-${PV/_/}.src.tar.xz.sig
 				)
 			"
 			BDEPEND+="
 				verify-sig? (
-					sec-keys/openpgp-keys-llvm
+					>=sec-keys/openpgp-keys-llvm-15
 				)
 			"
 			VERIFY_SIG_OPENPGP_KEY_PATH=${BROOT}/usr/share/openpgp-keys/llvm.asc
@@ -302,7 +302,7 @@ llvm.org_src_unpack() {
 	else
 		local archive=llvmorg-${PV/_/-}.tar.gz
 		if ver_test -ge 14.0.5; then
-			archive=llvm-project-${PV/_/-}.src.tar.xz
+			archive=llvm-project-${PV/_/}.src.tar.xz
 			if use verify-sig; then
 				verify-sig_verify_detached \
 					"${DISTDIR}/${archive}" "${DISTDIR}/${archive}.sig"
